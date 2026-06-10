@@ -24,36 +24,15 @@
         return;
       }
 
-      /* Update nav user display & state select */
+      /* Update nav user display */
       const nameEl = document.getElementById('user-display');
-      const stateSel = document.getElementById('user-state-select');
+      const stateEl = document.getElementById('user-state-badge');
       if (nameEl) nameEl.textContent = user.displayName || user.email;
-      
-      if (stateSel) {
-        if (!stateSel.options.length) {
-          stateSel.innerHTML = US_STATES.map(s =>
-            `<option value="${s.code}">${s.code}</option>`
-          ).join('');
-        }
-        stateSel.value = user.state || 'TX';
-
-        // Wire state change reload
-        stateSel.addEventListener('change', async (e) => {
-          const newCode = e.target.value;
-          try {
-            document.getElementById('loading-overlay').classList.remove('hidden');
-            await Auth.updateState(newCode);
-            window.location.reload();
-          } catch (err) {
-            console.error('Failed to update state:', err);
-            window.location.reload();
-          }
-        });
-      }
+      if (stateEl) stateEl.textContent = user.state || 'TX';
 
       /* Load tickets for analytics */
       try {
-        await Tracker.loadTickets(user.uid);
+        await Tracker.loadTickets(user.uid, user.state || 'TX');
       } catch (e) {
         console.error('Failed to load tickets:', e);
       }
@@ -179,6 +158,75 @@
 
     /* 3. Render Chart */
     renderChart(filteredWins);
+
+    /* 4. Update Recommendations */
+    updateRecommendations(filteredWins, _gameFilter);
+  }
+
+  /* ── Update Recommendations ──────────────────────────────── */
+  function updateRecommendations(wins, gameFilter) {
+    const recCard = document.getElementById('smart-recommendations-card');
+    const recContent = document.getElementById('recommendations-content');
+    if (!recCard || !recContent) return;
+
+    if (wins.length === 0) {
+      recCard.style.display = 'none';
+      return;
+    }
+
+    const stats = {};
+    let totalWinsWithNum = 0;
+    
+    for (const t of wins) {
+      const num = (t.ticketNumber || '').trim();
+      if (!num) continue;
+      if (!stats[num]) {
+        stats[num] = { freq: 0, amt: 0 };
+      }
+      stats[num].freq += 1;
+      stats[num].offsetPrice = t.price || 0;
+      stats[num].amt += parseFloat(t.winAmt) || 0;
+      totalWinsWithNum += 1;
+    }
+
+    if (totalWinsWithNum === 0) {
+      recCard.style.display = 'none';
+      return;
+    }
+
+    const sortedByFreq = Object.keys(stats).sort((a, b) => stats[b].freq - stats[a].freq);
+    const sortedByAmt = Object.keys(stats).sort((a, b) => stats[b].amt - stats[a].amt);
+
+    const bestFreqNum = sortedByFreq[0];
+    const bestFreqVal = stats[bestFreqNum].freq;
+    const bestFreqPct = ((bestFreqVal / totalWinsWithNum) * 100).toFixed(1);
+
+    const bestAmtNum = sortedByAmt[0];
+    const bestAmtVal = stats[bestAmtNum].amt;
+
+    let gameText = gameFilter === 'all' ? 'across all games' : 'for the selected game';
+    
+    let html = `
+      <p style="margin-bottom: 8px;">Based on your logging history ${gameText}:</p>
+      <ul style="margin-left: 20px; margin-bottom: 12px; list-style-type: disc;">
+        <li style="margin-bottom: 6px;">
+          🎯 <strong>Ticket Number #${bestFreqNum}</strong> has the <strong>highest win probability</strong>. It won <strong>${bestFreqVal} times</strong>, representing <strong>${bestFreqPct}%</strong> of your winning tickets.
+        </li>
+        ${bestAmtNum !== bestFreqNum ? `
+        <li style="margin-bottom: 6px;">
+          💰 <strong>Ticket Number #${bestAmtNum}</strong> has the <strong>highest cash yield</strong>, returning a total of <strong>${fmt(bestAmtVal)}</strong>.
+        </li>` : `
+        <li style="margin-bottom: 6px;">
+          💰 It is also your <strong>highest cash yield</strong> ticket number, returning a total of <strong>${fmt(bestAmtVal)}</strong>.
+        </li>`}
+      </ul>
+      <p style="font-weight: 500; color: var(--gold); background: rgba(255, 215, 0, 0.04); border: 1px dashed rgba(255, 215, 0, 0.25); padding: 10px 14px; border-radius: 8px;">
+        💡 <strong>Next Purchase Advice:</strong> When buying this scratch-off next time, look for ticket <strong>#${bestFreqNum}</strong> to maximize your probability of winning!
+      </p>
+    `;
+
+    recContent.innerHTML = html;
+    recCard.style.display = '';
   }
 
   /* ── Render wins historical list ─────────────────────────── */
@@ -362,6 +410,76 @@
       document.getElementById('toggle-freq').classList.remove('active');
       updateDashboard();
     });
+
+    /* Profile Modal triggers */
+    const badgeEl = document.getElementById('user-state-badge');
+    if (badgeEl) {
+      badgeEl.addEventListener('click', () => openProfileModal());
+    }
+
+    const dispEl = document.getElementById('user-display');
+    if (dispEl) {
+      dispEl.addEventListener('click', () => openProfileModal());
+    }
+
+    const closeEl = document.getElementById('profile-modal-close');
+    if (closeEl) {
+      closeEl.addEventListener('click', () => closeProfileModal());
+    }
+
+    window.addEventListener('click', (e) => {
+      const modal = document.getElementById('profile-modal');
+      if (e.target === modal) {
+        closeProfileModal();
+      }
+    });
+
+    const saveBtn = document.getElementById('profile-save-btn');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', async () => {
+        const name = document.getElementById('profile-name').value.trim();
+        const state = document.getElementById('profile-state').value;
+        if (!name) {
+          showToast('Please enter your name.', 'e');
+          return;
+        }
+        try {
+          document.getElementById('loading-overlay').classList.remove('hidden');
+          await Auth.updateProfile({ displayName: name, state: state });
+          closeProfileModal();
+          window.location.reload(); // Reload to refresh all analytics for the new state!
+        } catch (err) {
+          console.error('Failed to update profile:', err);
+          showToast('Failed to save profile. Try again.', 'e');
+          document.getElementById('loading-overlay').classList.add('hidden');
+        }
+      });
+    }
+  }
+
+  function openProfileModal() {
+    const user = Auth.currentUser;
+    if (!user) return;
+
+    document.getElementById('profile-email').value = user.email || '';
+    document.getElementById('profile-name').value = user.displayName || '';
+    
+    const stateSel = document.getElementById('profile-state');
+    if (stateSel) {
+      if (!stateSel.options.length) {
+        stateSel.innerHTML = US_STATES.map(s =>
+          `<option value="${s.code}">${s.name} (${s.code})</option>`
+        ).join('');
+      }
+      stateSel.value = user.state || 'TX';
+    }
+
+    document.getElementById('profile-modal').style.display = 'flex';
+  }
+
+  function closeProfileModal() {
+    const modal = document.getElementById('profile-modal');
+    if (modal) modal.style.display = 'none';
   }
 
   /* ── Helpers ─────────────────────────────────────────────── */

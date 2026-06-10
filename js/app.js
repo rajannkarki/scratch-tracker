@@ -34,7 +34,7 @@
       if (user) {
         UI.showLoading();
         try {
-          await Tracker.loadTickets(user.uid);
+          await Tracker.loadTickets(user.uid, user.state || 'TX');
         } catch (e) {
           console.error('Failed to load tickets:', e);
         }
@@ -166,7 +166,7 @@
     /* Custom Game Handlers */
     const customCancel = document.getElementById('custom-game-cancel');
     if (customCancel) {
-      customCancel.addEventListener('click', () => UI.cancelCustomGame());
+      customCancel.addEventListener('click', () => UI.resetGame());
     }
 
     const cgPrice = document.getElementById('custom-game-price');
@@ -299,22 +299,57 @@
       }
     });
 
-    /* Navbar state select dropdown change */
-    const stateSelect = document.getElementById('user-state-select');
-    if (stateSelect) {
-      stateSelect.addEventListener('change', async (e) => {
-        const newCode = e.target.value;
+    /* Profile Modal triggers */
+    const badgeEl = document.getElementById('user-state-badge');
+    if (badgeEl) {
+      badgeEl.addEventListener('click', () => UI.openProfileModal());
+    }
+
+    const dispEl = document.getElementById('user-display');
+    if (dispEl) {
+      dispEl.addEventListener('click', () => UI.openProfileModal());
+    }
+
+    const closeEl = document.getElementById('profile-modal-close');
+    if (closeEl) {
+      closeEl.addEventListener('click', () => UI.closeProfileModal());
+    }
+
+    // Close modal when clicking outside of it
+    window.addEventListener('click', (e) => {
+      const modal = document.getElementById('profile-modal');
+      if (e.target === modal) {
+        UI.closeProfileModal();
+      }
+    });
+
+    // Save profile settings
+    const saveBtn = document.getElementById('profile-save-btn');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', async () => {
+        const name = document.getElementById('profile-name').value.trim();
+        const state = document.getElementById('profile-state').value;
+        if (!name) {
+          UI.showToast('Please enter your name.', 'e');
+          return;
+        }
         try {
           UI.showLoading();
-          await Auth.updateState(newCode);
-          UI.filterGames('');
-          UI.renderAll();
-          UI.showToast(`State changed to ${newCode}!`, 's');
+          const oldState = Auth.currentUser.state;
+          await Auth.updateProfile({ displayName: name, state: state });
+          UI.closeProfileModal();
+          UI.updateUserDisplay();
+          UI.showToast('Profile updated!', 's');
+          
+          // If state changed, reload tickets for that state
+          if (state !== oldState) {
+            await Tracker.loadTickets(Auth.currentUser.uid, state);
+            UI.filterGames('');
+            UI.renderAll();
+          }
         } catch (err) {
-          console.error('Failed to update state:', err);
-          UI.showToast('Failed to update state. Try again.', 'e');
-          // revert select value
-          if (Auth.currentUser) e.target.value = Auth.currentUser.state;
+          console.error('Failed to update profile:', err);
+          UI.showToast('Failed to save profile. Try again.', 'e');
         } finally {
           UI.hideLoading();
         }

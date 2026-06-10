@@ -323,10 +323,13 @@ body {
 
 /* ── MAIN CONTAINER ────────────────────────────────────────── */
 .main {
-  max-width: 1200px; margin: 0 auto;
+  max-width: 760px; margin: 0 auto;
   padding: 20px 16px;
   display: flex; flex-direction: column; gap: 20px;
   width: 100%;
+}
+.main.max-width-large {
+  max-width: 1200px;
 }
 
 /* ── LOG FORM CARD ─────────────────────────────────────────── */
@@ -963,19 +966,8 @@ body {
   font-weight: normal;
 }
 
-/* ── DESKTOP TWO-COLUMN GRID (min-width: 1024px) ────────────── */
+/* ── DESKTOP GRID (min-width: 1024px) ───────────────────────── */
 @media (min-width: 1024px) {
-  #app-screen .main {
-    display: grid;
-    grid-template-columns: 420px 1fr;
-    gap: 30px;
-    align-items: start;
-  }
-  #app-screen .form-card {
-    position: sticky;
-    top: 90px;
-  }
-  
   /* Win Analytics Grid */
   .analytics-grid {
     display: grid;
@@ -983,6 +975,55 @@ body {
     gap: 24px;
     align-items: start;
   }
+}
+
+/* ── PROFILE MODAL ─────────────────────────────────────────── */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(10, 10, 10, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: modalFadeIn 0.25s ease;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-content {
+  width: 100%;
+  max-width: 440px;
+  padding: 28px 24px;
+  background: rgba(17, 17, 17, 0.9);
+  border: 1px solid rgba(255, 215, 0, 0.25);
+  border-radius: var(--radius);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 30px rgba(255, 215, 0, 0.05);
+  position: relative;
+  animation: modalSlideUp 0.3s ease;
+}
+
+@keyframes modalSlideUp {
+  from { transform: translateY(20px); }
+  to { transform: none; }
+}
+
+.modal-hdr {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+}
+
+.modal-close:hover {
+  color: var(--gold) !important;
 }
 
 /* ── WIN ANALYTICS DASHBOARD COMPONENTS ────────────────────── */

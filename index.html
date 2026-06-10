@@ -87,8 +87,8 @@
           <a href="prizes.html" class="nav-link" id="nav-prizes">Win Analytics</a>
         </div>
         <div class="nav-user">
-          <select class="user-state-select" id="user-state-select"></select>
-          <span class="user-display" id="user-display">User</span>
+          <span class="user-state-badge" id="user-state-badge" style="cursor:pointer;" title="Click to edit profile/state">TX</span>
+          <span class="user-display" id="user-display" style="cursor:pointer;" title="Click to edit profile/state">User</span>
           <button class="logout-btn" id="logout-btn" title="Sign Out">⏻</button>
         </div>
       </div>
@@ -181,6 +181,31 @@
           </div>
           <div class="records" id="records"></div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Profile Modal -->
+  <div id="profile-modal" class="modal" style="display:none;">
+    <div class="modal-content glass-card">
+      <div class="modal-hdr">
+        <h2 style="font-family:'Black Ops One',cursive; color:var(--gold); font-size:1.3rem;">👤 User Profile</h2>
+        <span class="modal-close" id="profile-modal-close" style="cursor:pointer; font-size:1.5rem; color:var(--muted); transition:color var(--transition);">&times;</span>
+      </div>
+      <div class="modal-body" style="margin-top:16px;">
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:0.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:1px;">Email Address</label>
+          <input type="text" id="profile-email" readonly style="opacity: 0.6; cursor: not-allowed; width:100%; padding:10px; background:var(--card2); border:1px solid var(--border2); border-radius:8px; color:var(--text); outline:none;">
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label for="profile-name" style="font-size:0.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:1px;">Display Name</label>
+          <input type="text" id="profile-name" placeholder="Your name" style="width:100%; padding:10px; background:var(--card2); border:1px solid var(--border2); border-radius:8px; color:var(--text); outline:none; transition:border-color var(--transition);">
+        </div>
+        <div class="form-group" style="margin-bottom:16px;">
+          <label for="profile-state" style="font-size:0.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:1px;">Active State</label>
+          <select id="profile-state" class="anal-select" style="width:100%;"></select>
+        </div>
+        <button class="add-btn" id="profile-save-btn" style="width:100%; margin-top:8px;">Save Changes</button>
       </div>
     </div>
   </div>

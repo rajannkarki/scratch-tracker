@@ -399,21 +399,39 @@ const UI = {
     const user = Auth.currentUser;
     if (!user) return;
     const nameEl = document.getElementById('user-display');
-    const stateSel = document.getElementById('user-state-select');
+    const stateEl = document.getElementById('user-state-badge');
     if (nameEl) nameEl.textContent = user.displayName || user.email;
+    if (stateEl) stateEl.textContent = user.state || 'TX';
+  },
+
+  populateProfileStateDropdown() {
+    const sel = document.getElementById('profile-state');
+    if (!sel) return;
+    sel.innerHTML = US_STATES.map(s =>
+      `<option value="${s.code}">${s.name} (${s.code})</option>`
+    ).join('');
+  },
+
+  openProfileModal() {
+    const user = Auth.currentUser;
+    if (!user) return;
+
+    document.getElementById('profile-email').value = user.email || '';
+    document.getElementById('profile-name').value = user.displayName || '';
+    
+    const stateSel = document.getElementById('profile-state');
     if (stateSel) {
       if (!stateSel.options.length) {
-        UI.populateNavbarStateDropdown();
+        UI.populateProfileStateDropdown();
       }
       stateSel.value = user.state || 'TX';
     }
+
+    document.getElementById('profile-modal').style.display = 'flex';
   },
 
-  populateNavbarStateDropdown() {
-    const sel = document.getElementById('user-state-select');
-    if (!sel) return;
-    sel.innerHTML = US_STATES.map(s =>
-      `<option value="${s.code}">${s.code}</option>`
-    ).join('');
+  closeProfileModal() {
+    const modal = document.getElementById('profile-modal');
+    if (modal) modal.style.display = 'none';
   }
 };

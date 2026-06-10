@@ -14,22 +14,27 @@ const Tracker = {
   tickets: [],
 
   /**
-   * Load all tickets for a user from Firestore, ordered newest-first.
+   * Load all tickets for a user from Firestore, ordered newest-first,
+   * and filter them locally by the active state code.
    *
    * @param {string} userId
+   * @param {string} stateCode — e.g. 'TX'
    * @returns {Promise<Array>} the loaded tickets
    */
-  async loadTickets(userId) {
+  async loadTickets(userId, stateCode) {
     const snap = await db
       .collection("users").doc(userId)
       .collection("tickets")
       .orderBy("createdAt", "desc")
       .get();
 
-    Tracker.tickets = snap.docs.map(doc => ({
+    const all = snap.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     }));
+
+    // Filter locally by state. Default legacy tickets to TX.
+    Tracker.tickets = all.filter(t => (t.state || "TX") === stateCode);
 
     return Tracker.tickets;
   },
@@ -51,6 +56,7 @@ const Tracker = {
       outcome:      ticketData.outcome,       // 'win' | 'loss'
       ticketNumber: ticketData.ticketNumber || "",
       date:         ticketData.date,           // 'YYYY-MM-DD'
+      state:        Auth.currentUser.state || "TX",
       createdAt:    firebase.firestore.FieldValue.serverTimestamp()
     };
 
