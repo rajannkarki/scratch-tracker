@@ -116,6 +116,23 @@
         UI.showToast('Sign out failed.', 'e');
       }
     });
+
+    /* Google Login */
+    const googleBtn = document.getElementById('google-btn');
+    if (googleBtn) {
+      googleBtn.addEventListener('click', async () => {
+        UI.clearAuthError();
+        try {
+          UI.showLoading();
+          await Auth.signInWithGoogle();
+        } catch (err) {
+          console.error(err);
+          UI.showAuthError(friendlyError(err));
+        } finally {
+          UI.hideLoading();
+        }
+      });
+    }
   }
 
   /* ── Tracker events ──────────────────────────────────────── */
@@ -146,6 +163,29 @@
     /* Change game button */
     document.getElementById('change-game-btn').addEventListener('click', () => UI.resetGame());
 
+    /* Custom Game Handlers */
+    const customCancel = document.getElementById('custom-game-cancel');
+    if (customCancel) {
+      customCancel.addEventListener('click', () => UI.cancelCustomGame());
+    }
+
+    const cgPrice = document.getElementById('custom-game-price');
+    if (cgPrice) {
+      cgPrice.addEventListener('input', (e) => {
+        UI.updateCustomGamePrizeChips(e.target.value);
+      });
+    }
+
+    const cgName = document.getElementById('custom-game-name');
+    if (cgName) {
+      cgName.addEventListener('input', () => UI.syncCustomGameData());
+    }
+
+    const cgNum = document.getElementById('custom-game-num');
+    if (cgNum) {
+      cgNum.addEventListener('input', () => UI.syncCustomGameData());
+    }
+
     /* Prize chip clicks */
     document.getElementById('prize-chips').addEventListener('click', (e) => {
       const chip = e.target.closest('.chip');
@@ -166,6 +206,19 @@
         return;
       }
 
+      UI.syncCustomGameData();
+
+      if (UI.selectedGame.isCustom) {
+        if (!UI.selectedGame.name) {
+          UI.showToast('Enter a custom game name!', 'e');
+          return;
+        }
+        if (UI.selectedGame.price <= 0) {
+          UI.showToast('Enter a valid ticket price!', 'e');
+          return;
+        }
+      }
+
       const customVal = document.getElementById('custom-amt').value;
       const winAmt = parseFloat(customVal);
       const isWin = !isNaN(winAmt) && winAmt > 0;
@@ -183,7 +236,7 @@
       }
 
       const ticketData = {
-        gameNum: UI.selectedGame.num,
+        gameNum: UI.selectedGame.num || 'Custom',
         gameName: UI.selectedGame.name,
         price: UI.selectedGame.price,
         winAmt: isNaN(winAmt) ? 0 : winAmt,
@@ -245,6 +298,28 @@
         UI.showToast('Failed to delete. Try again.', 'e');
       }
     });
+
+    /* Navbar state select dropdown change */
+    const stateSelect = document.getElementById('user-state-select');
+    if (stateSelect) {
+      stateSelect.addEventListener('change', async (e) => {
+        const newCode = e.target.value;
+        try {
+          UI.showLoading();
+          await Auth.updateState(newCode);
+          UI.filterGames('');
+          UI.renderAll();
+          UI.showToast(`State changed to ${newCode}!`, 's');
+        } catch (err) {
+          console.error('Failed to update state:', err);
+          UI.showToast('Failed to update state. Try again.', 'e');
+          // revert select value
+          if (Auth.currentUser) e.target.value = Auth.currentUser.state;
+        } finally {
+          UI.hideLoading();
+        }
+      });
+    }
   }
 
   /* ── Friendly Firebase errors ────────────────────────────── */

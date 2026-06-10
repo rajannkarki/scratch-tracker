@@ -94,7 +94,11 @@ const GAMES_BY_STATE = {
     { num:"2628", name:"Texas Loteria", close:null, price:3, prizes:[3,5,8,10,15,18,20,30,33,50,80,250,3000,50000] },
     { num:"2610", name:"Ultimate Millions", close:null, price:50, prizes:[75,100,150,250,500,2000,25000,1000000] },
     { num:"2124", name:"Winning 7s", close:null, price:1, prizes:[1,2,3,4,5,6,10,20,50,500] },
-    { num:"2590", name:"X", close:null, price:50, prizes:[75,100,150,200,500,1000,5000,20000,1000000] }
+    { num:"2590", name:"X", close:null, price:50, prizes:[75,100,150,200,500,1000,5000,20000,1000000] },
+    { num:"2727", name:"All About the 8s", close:null, price:5, prizes:[5,10,15,20,50,100,500,1000,5000,100000] },
+    { num:"2736", name:"Monaco Cash (Monaco Millionaire Family)", close:null, price:5, prizes:[5,10,20,50,100,500,1000,5000,200000] },
+    { num:"2737", name:"Monaco VIP (Monaco Millionaire Family)", close:null, price:10, prizes:[10,20,50,100,200,500,1000,10000,500000] },
+    { num:"2738", name:"Monaco Millionaire", close:null, price:20, prizes:[20,30,50,100,200,500,1000,10000,1000000] }
   ]
 };
 
@@ -103,12 +107,29 @@ const GAMES_BY_STATE = {
    ---------------------------------------------------------- */
 
 /**
- * Returns the array of games for a given state code, or an empty array.
+ * Returns the array of games for a given state code, or generates a fallback list of default games.
  * @param {string} stateCode — e.g. 'TX'
  * @returns {Array}
  */
 function getGamesForState(stateCode) {
-  return GAMES_BY_STATE[stateCode] || [];
+  if (GAMES_BY_STATE[stateCode]) {
+    return GAMES_BY_STATE[stateCode];
+  }
+  const stateInfo = getStateInfo(stateCode);
+  const stateName = stateInfo ? stateInfo.name : "State";
+  return [
+    { num: stateCode + "-2727", name: `${stateName} All About the 8s`, close: null, price: 5, prizes: [5, 10, 15, 20, 50, 100, 500, 1000, 5000, 100000] },
+    { num: stateCode + "-2736", name: `${stateName} Monaco Cash`, close: null, price: 5, prizes: [5, 10, 20, 50, 100, 500, 1000, 5000, 200000] },
+    { num: stateCode + "-2737", name: `${stateName} Monaco VIP`, close: null, price: 10, prizes: [10, 20, 50, 100, 200, 500, 1000, 10000, 500000] },
+    { num: stateCode + "-2738", name: `${stateName} Monaco Millionaire`, close: null, price: 20, prizes: [20, 30, 50, 100, 200, 500, 1000, 10000, 1000000] },
+    { num: stateCode + "-01", name: `${stateName} Cash Luck`, close: null, price: 1, prizes: [1, 2, 5, 10, 20, 50, 100, 500] },
+    { num: stateCode + "-02", name: `${stateName} Wild 8s`, close: null, price: 2, prizes: [2, 5, 10, 20, 40, 50, 100, 1000, 30000] },
+    { num: stateCode + "-03", name: `${stateName} Loteria`, close: null, price: 3, prizes: [3, 5, 8, 10, 15, 18, 20, 30, 50, 80, 250, 3000, 50000] },
+    { num: stateCode + "-10", name: `${stateName} 50X the Money`, close: null, price: 10, prizes: [10, 20, 30, 50, 100, 200, 500, 1000, 5000, 1000000] },
+    { num: stateCode + "-30", name: `${stateName} $3 Million Cash`, close: null, price: 30, prizes: [30, 50, 100, 150, 200, 300, 500, 1000, 10000, 3000000] },
+    { num: stateCode + "-50", name: `${stateName} $5 Million Royale`, close: null, price: 50, prizes: [50, 100, 150, 200, 500, 1000, 10000, 5000000] },
+    { num: stateCode + "-100", name: `${stateName} $20 Million Supreme`, close: null, price: 100, prizes: [150, 200, 300, 500, 1000, 10000, 100000, 20000000] }
+  ];
 }
 
 /**

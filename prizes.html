@@ -3,11 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Prize Ranges — Scratch Tracker</title>
-  <meta name="description" content="Browse all scratch-off lottery games and their prize tiers. See which games you've played and compare prize ranges.">
+  <title>Win Analytics — Scratch Tracker</title>
+  <meta name="description" content="Browse scratch-off lottery winning numbers, frequencies, payouts, and interactive win probability charts.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎰</text></svg>">
   <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
@@ -15,36 +17,102 @@
   <div id="loading-overlay" class="loading-overlay"><div class="spinner"></div></div>
 
   <nav class="navbar">
-    <div class="nav-brand">
-      <span class="nav-logo">🎰</span>
-      <span class="nav-title">Scratch Tracker</span>
-    </div>
-    <div class="nav-links">
-      <a href="index.html" class="nav-link" id="nav-tracker">Tracker</a>
-      <a href="prizes.html" class="nav-link active" id="nav-prizes">Prize Ranges</a>
-    </div>
-    <div class="nav-user">
-      <span class="user-state-badge" id="user-state-badge">TX</span>
-      <span class="user-display" id="user-display">User</span>
-      <button class="logout-btn" id="logout-btn" title="Sign Out">⏻</button>
+    <div class="nav-inner">
+      <div class="nav-brand">
+        <span class="nav-logo">🎰</span>
+        <span class="nav-title">Scratch Tracker</span>
+      </div>
+      <div class="nav-links">
+        <a href="index.html" class="nav-link" id="nav-tracker">Tracker</a>
+        <a href="prizes.html" class="nav-link active" id="nav-prizes">Win Analytics</a>
+      </div>
+      <div class="nav-user">
+        <select class="user-state-select" id="user-state-select"></select>
+        <span class="user-display" id="user-display">User</span>
+        <button class="logout-btn" id="logout-btn" title="Sign Out">⏻</button>
+      </div>
     </div>
   </nav>
 
-  <div class="main">
+  <div class="main max-width-large">
     <div class="prizes-header">
-      <h1 class="prizes-title">🏆 Prize Ranges</h1>
-      <p class="prizes-subtitle">Browse all scratch-off games and their prize tiers</p>
+      <h1 class="prizes-title">📊 Win Analytics</h1>
+      <p class="prizes-subtitle">Analyze winning ticket numbers, frequencies, and payouts</p>
     </div>
 
-    <div class="price-filter" id="price-filter"></div>
-
-    <input class="prizes-search" id="prizes-search" type="text" placeholder="🔍 Search games...">
-
-    <div class="no-games-msg" id="no-games-msg" style="display:none">
-      <p>No games available for your state yet.<br>Games data is currently available for Texas only.</p>
+    <!-- Analytics Key Metrics Grid -->
+    <div class="analytics-metrics">
+      <div class="metric-card">
+        <div class="metric-val" id="m-wins">0</div>
+        <div class="metric-lbl">Total Wins Logged</div>
+      </div>
+      <div class="metric-card gold-border">
+        <div class="metric-val" id="m-lucky">#—</div>
+        <div class="metric-lbl">🔥 Luckiest Ticket #</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val" id="m-max">$0</div>
+        <div class="metric-lbl">🏆 Highest Win</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val" id="m-total-won">$0</div>
+        <div class="metric-lbl">Total Cash Won</div>
+      </div>
     </div>
 
-    <div class="game-catalog" id="game-catalog"></div>
+    <!-- Filters Panel -->
+    <div class="analytics-filters-card">
+      <div class="form-group anal-game-wrap">
+        <label for="anal-game-filter">Filter by Game</label>
+        <select id="anal-game-filter" class="anal-select"></select>
+      </div>
+      <div class="anal-chips-wrap">
+        <label>Filter by Price</label>
+        <div class="price-filter" id="price-filter"></div>
+      </div>
+    </div>
+
+    <div class="no-tickets-msg" id="no-tickets-msg" style="display:none">
+      <p>No winning tickets logged yet. Start recording your scratch-off wins in the Tracker to unlock analytics!</p>
+      <a href="index.html" class="add-btn" style="display:inline-block; max-width:200px; text-decoration:none; text-align:center; margin-top:16px;">Go to Tracker</a>
+    </div>
+
+    <!-- Analytics Grid (Chart + Table) -->
+    <div class="analytics-grid" id="analytics-grid">
+      <!-- Left Column: Chart -->
+      <div class="chart-section form-card">
+        <div class="chart-hdr">
+          <div class="form-title" style="margin-bottom: 0;">📈 Ticket Number Distribution</div>
+          <div class="chart-toggles">
+            <button class="toggle-btn active" id="toggle-freq" data-type="freq">Frequency</button>
+            <button class="toggle-btn" id="toggle-amt" data-type="amt">Amount Won</button>
+          </div>
+        </div>
+        <div class="chart-container">
+          <canvas id="analytics-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Right Column: Historical Table -->
+      <div class="history-section form-card">
+        <div class="form-title">📜 Winning Tickets Log</div>
+        <div class="table-wrap">
+          <table class="wins-table">
+            <thead>
+              <tr>
+                <th>Ticket #</th>
+                 <th>Game Name</th>
+                 <th>Won</th>
+                 <th>Date</th>
+              </tr>
+            </thead>
+            <tbody id="wins-table-body">
+              <!-- Dynamic rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="toast" id="toast"></div>

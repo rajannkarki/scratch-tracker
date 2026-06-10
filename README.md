@@ -23,12 +23,17 @@ A premium, dark-themed lottery scratch-off ticket tracker. Track your wins, reco
 3. Enter a project name (e.g., "scratch-tracker")
 4. Disable Google Analytics (optional) → Click **"Create project"**
 
-### Step 2: Enable Email/Password Authentication
+### Step 2: Enable Authentication Providers
 
 1. In your Firebase project, go to **Authentication** (left sidebar)
-2. Click **"Get started"**
+2. Click **"Get started"** (if not already done)
 3. Click the **"Sign-in method"** tab
-4. Click **"Email/Password"** → Toggle **Enable** → Click **Save**
+4. Enable **Email/Password**:
+   - Click **"Email/Password"** → Toggle **Enable** → Click **Save**
+5. Enable **Google** (Required for Google Login):
+   - Click **"Add new provider"** → Select **Google**
+   - Toggle **Enable**
+   - Select your project support email in the dropdown → Click **Save**
 
 ### Step 3: Create Firestore Database
 
@@ -94,8 +99,8 @@ const FIREBASE_CONFIG = {
 
 ### Step 2: Push Your Code
 
+**If this is your FIRST time pushing to GitHub:**
 Open a terminal in your project folder and run:
-
 ```bash
 git init
 git add .
@@ -103,6 +108,14 @@ git commit -m "Initial commit"
 git branch -M main
 git remote add origin https://github.com/YOUR_USERNAME/scratch-tracker.git
 git push -u origin main
+```
+
+**If you already set up GitHub and just want to push the NEW updates:**
+Run this in your terminal:
+```bash
+git add .
+git commit -m "Implement Win Analytics, Google Login, and layout optimizations"
+git push
 ```
 
 ### Step 3: Enable GitHub Pages

@@ -100,6 +100,44 @@ const Auth = {
   },
 
   /**
+   * Sign in with Google provider.
+   *
+   * @returns {Promise<Object>} the merged user object
+   */
+  async signInWithGoogle() {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    const cred = await auth.signInWithPopup(provider);
+    
+    // Check if the user profile exists in Firestore
+    const doc = await db.collection("users").doc(cred.user.uid).get();
+    let profile = {};
+    if (!doc.exists) {
+      profile = {
+        email: cred.user.email,
+        displayName: cred.user.displayName || "User",
+        state: "TX", // Default to TX, user can change in navbar
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      await db.collection("users").doc(cred.user.uid).set(profile);
+    } else {
+      profile = doc.data();
+      if (!profile.state) {
+        profile.state = "TX";
+        await db.collection("users").doc(cred.user.uid).update({ state: "TX" });
+      }
+    }
+
+    Auth.currentUser = {
+      uid: cred.user.uid,
+      email: cred.user.email,
+      displayName: profile.displayName || cred.user.displayName || "",
+      state: profile.state || "TX"
+    };
+
+    return Auth.currentUser;
+  },
+
+  /**
    * Update the user's selected state in Firestore and locally.
    *
    * @param {string} stateCode — two-letter state code

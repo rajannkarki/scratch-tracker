@@ -23,17 +23,27 @@ const UI = {
   renderDrop() {
     const drop = document.getElementById('game-drop');
     if (!drop) return;
+    
+    let html = '';
     if (!UI.filteredGames.length) {
-      drop.innerHTML = '<div class="game-opt" style="color:var(--muted);cursor:default;">No games found</div>';
-      return;
+      html = '<div class="game-opt" style="color:var(--muted);cursor:default;">No games found</div>';
+    } else {
+      html = UI.filteredGames.map((g, i) => {
+        const closing = g.close ? ` · Ends ${g.close}` : '';
+        return `<div class="game-opt${i === UI.dropFocusIdx ? ' focused' : ''}" data-idx="${i}">
+          <span class="game-opt-name">${UI.esc(g.name)}</span>
+          <span class="game-opt-meta">$${g.price}${closing}</span>
+        </div>`;
+      }).join('');
     }
-    drop.innerHTML = UI.filteredGames.map((g, i) => {
-      const closing = g.close ? ` · Ends ${g.close}` : '';
-      return `<div class="game-opt${i === UI.dropFocusIdx ? ' focused' : ''}" data-idx="${i}">
-        <span class="game-opt-name">${UI.esc(g.name)}</span>
-        <span class="game-opt-meta">$${g.price}${closing}</span>
-      </div>`;
-    }).join('');
+    
+    // Always append Custom Game trigger option
+    html += `<div class="game-opt custom-game-trigger" style="color:var(--gold);font-weight:600;border-top:1px solid var(--border);" data-idx="-2">
+      <span class="game-opt-name">➕ Custom Game...</span>
+      <span class="game-opt-meta">Add manually</span>
+    </div>`;
+    
+    drop.innerHTML = html;
   },
 
   openDrop() {
@@ -73,6 +83,10 @@ const UI = {
   },
 
   pickGame(index) {
+    if (index === -2) {
+      UI.showCustomGameFields();
+      return;
+    }
     UI.selectedGame = UI.filteredGames[index];
     UI.selectedPrize = null;
 
@@ -92,11 +106,66 @@ const UI = {
     document.getElementById('ticket-num-section').style.display = 'none';
   },
 
+  showCustomGameFields() {
+    UI.selectedGame = {
+      name: '',
+      price: 0,
+      num: '',
+      prizes: [],
+      isCustom: true
+    };
+    UI.selectedPrize = null;
+
+    document.getElementById('game-search').value = '';
+    document.getElementById('game-drop').classList.remove('open');
+    document.getElementById('game-picker').style.display = 'none';
+    document.getElementById('sel-game-row').classList.remove('show');
+
+    document.getElementById('custom-game-fields').style.display = '';
+    document.getElementById('custom-game-name').value = '';
+    document.getElementById('custom-game-price').value = '';
+    document.getElementById('custom-game-num').value = '';
+    document.getElementById('custom-game-name').focus();
+
+    document.getElementById('prize-section').style.display = 'none';
+    document.getElementById('prize-chips').innerHTML = '';
+    document.getElementById('custom-amt').value = '';
+    document.getElementById('ticket-num').value = '';
+    document.getElementById('ticket-num-section').style.display = 'none';
+  },
+
+  updateCustomGamePrizeChips(price) {
+    const p = parseFloat(price) || 0;
+    if (p <= 0) {
+      document.getElementById('prize-section').style.display = 'none';
+      document.getElementById('prize-chips').innerHTML = '';
+      return;
+    }
+
+    UI.selectedGame = {
+      name: document.getElementById('custom-game-name').value.trim() || 'Custom Game',
+      price: p,
+      num: document.getElementById('custom-game-num').value.trim() || 'Custom',
+      prizes: [p, p * 2, p * 5, p * 10, p * 20, p * 50, p * 100, p * 500, p * 1000],
+      isCustom: true
+    };
+
+    UI.buildPrizeChips();
+  },
+
+  syncCustomGameData() {
+    if (!UI.selectedGame || !UI.selectedGame.isCustom) return;
+    UI.selectedGame.name = document.getElementById('custom-game-name').value.trim() || 'Custom Game';
+    UI.selectedGame.price = parseFloat(document.getElementById('custom-game-price').value) || 0;
+    UI.selectedGame.num = document.getElementById('custom-game-num').value.trim() || 'Custom';
+  },
+
   resetGame() {
     UI.selectedGame = null;
     UI.selectedPrize = null;
 
     document.getElementById('sel-game-row').classList.remove('show');
+    document.getElementById('custom-game-fields').style.display = 'none';
     document.getElementById('game-picker').style.display = '';
     document.getElementById('game-search').value = '';
     document.getElementById('prize-section').style.display = 'none';
@@ -330,8 +399,21 @@ const UI = {
     const user = Auth.currentUser;
     if (!user) return;
     const nameEl = document.getElementById('user-display');
-    const stateEl = document.getElementById('user-state-badge');
+    const stateSel = document.getElementById('user-state-select');
     if (nameEl) nameEl.textContent = user.displayName || user.email;
-    if (stateEl) stateEl.textContent = user.state || '—';
+    if (stateSel) {
+      if (!stateSel.options.length) {
+        UI.populateNavbarStateDropdown();
+      }
+      stateSel.value = user.state || 'TX';
+    }
+  },
+
+  populateNavbarStateDropdown() {
+    const sel = document.getElementById('user-state-select');
+    if (!sel) return;
+    sel.innerHTML = US_STATES.map(s =>
+      `<option value="${s.code}">${s.code}</option>`
+    ).join('');
   }
 };

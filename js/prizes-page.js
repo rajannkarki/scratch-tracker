@@ -1,59 +1,82 @@
 /* ============================================================
-   prizes-page.js — Prize Ranges page controller
+   prizes-page.js — Win Analytics Page Controller
    ============================================================ */
 
 (function () {
   'use strict';
 
   let _priceFilter = 'all';
-  let _searchQuery = '';
-  let _searchDebounce = null;
-  let _playedNums = new Set();
-  let _allGames = [];
+  let _gameFilter = 'all';
+  let _chartType = 'freq'; // 'freq' | 'amt'
+  let _chartInstance = null;
 
   document.addEventListener('DOMContentLoaded', () => {
-    /* 1. Check Firebase */
+    /* 1. Check Firebase Config */
     if (!isFirebaseConfigured()) {
       window.location.href = 'index.html';
       return;
     }
 
-    /* 2. Auth init */
+    /* 2. Init Auth Listener */
     Auth.init(async (user) => {
       if (!user) {
         window.location.href = 'index.html';
         return;
       }
 
-      /* Update nav user display */
+      /* Update nav user display & state select */
       const nameEl = document.getElementById('user-display');
-      const stateEl = document.getElementById('user-state-badge');
+      const stateSel = document.getElementById('user-state-select');
       if (nameEl) nameEl.textContent = user.displayName || user.email;
-      if (stateEl) stateEl.textContent = user.state || '—';
+      
+      if (stateSel) {
+        if (!stateSel.options.length) {
+          stateSel.innerHTML = US_STATES.map(s =>
+            `<option value="${s.code}">${s.code}</option>`
+          ).join('');
+        }
+        stateSel.value = user.state || 'TX';
 
-      /* Load tickets for "played" highlighting */
+        // Wire state change reload
+        stateSel.addEventListener('change', async (e) => {
+          const newCode = e.target.value;
+          try {
+            document.getElementById('loading-overlay').classList.remove('hidden');
+            await Auth.updateState(newCode);
+            window.location.reload();
+          } catch (err) {
+            console.error('Failed to update state:', err);
+            window.location.reload();
+          }
+        });
+      }
+
+      /* Load tickets for analytics */
       try {
         await Tracker.loadTickets(user.uid);
-        _playedNums = Tracker.getPlayedGameNums();
       } catch (e) {
         console.error('Failed to load tickets:', e);
       }
 
-      /* Load games */
-      _allGames = getGamesForState(user.state);
-
-      if (!_allGames.length) {
-        document.getElementById('no-games-msg').style.display = '';
+      const wins = Tracker.tickets.filter(t => t.outcome === 'win');
+      if (wins.length === 0) {
+        // Show empty analytics message
+        document.getElementById('no-tickets-msg').style.display = '';
+        document.getElementById('analytics-grid').style.display = 'none';
         document.getElementById('price-filter').style.display = 'none';
-        document.getElementById('prizes-search').style.display = 'none';
+        document.getElementById('anal-game-filter').parentElement.style.display = 'none';
+      } else {
+        document.getElementById('no-tickets-msg').style.display = 'none';
+        document.getElementById('analytics-grid').style.display = '';
       }
 
       buildPriceFilter();
-      renderCatalog();
+      buildGameFilter(user.state);
+      updateDashboard();
       hideLoading();
     });
 
-    /* 3. Wire events */
+    /* 3. Wire Events */
     wireEvents();
   });
 
@@ -63,92 +86,235 @@
     if (el) el.classList.add('hidden');
   }
 
-  /* ── Price filter chips ──────────────────────────────────── */
+  /* ── Build filters ───────────────────────────────────────── */
   function buildPriceFilter() {
-    const prices = [...new Set(_allGames.map(g => g.price))].sort((a, b) => a - b);
+    const prices = [...new Set(Tracker.tickets.map(g => g.price))].sort((a, b) => a - b);
     const container = document.getElementById('price-filter');
+    if (!container) return;
 
     let html = '<button class="price-chip active" data-price="all">All</button>';
     for (const p of prices) {
-      html += `<button class="price-chip" data-price="${p}">$${p}</button>`;
+      if (p) html += `<button class="price-chip" data-price="${p}">$${p}</button>`;
     }
     container.innerHTML = html;
   }
 
-  /* ── Render game catalog ─────────────────────────────────── */
-  function renderCatalog() {
-    let games = [..._allGames];
+  function buildGameFilter(stateCode) {
+    const select = document.getElementById('anal-game-filter');
+    if (!select) return;
 
-    /* Price filter */
+    const stateGames = getGamesForState(stateCode);
+    let html = '<option value="all">All Games</option>';
+
+    // Get unique games played by user in tickets
+    const playedGameNums = [...new Set(Tracker.tickets.map(t => t.gameNum))];
+    const playedGamesList = [];
+
+    for (const num of playedGameNums) {
+      const g = stateGames.find(sg => sg.num === num);
+      if (g) {
+        playedGamesList.push(g);
+      } else {
+        const ticket = Tracker.tickets.find(t => t.gameNum === num);
+        if (ticket) {
+          playedGamesList.push({ num: ticket.gameNum, name: ticket.gameName, price: ticket.price });
+        }
+      }
+    }
+
+    // Sort by name
+    playedGamesList.sort((a, b) => a.name.localeCompare(b.name));
+
+    for (const g of playedGamesList) {
+      html += `<option value="${g.num}">${esc(g.name)} ($${g.price})</option>`;
+    }
+    select.innerHTML = html;
+  }
+
+  /* ── Update Dashboard Metrics & Visuals ──────────────────── */
+  function updateDashboard() {
+    let filteredWins = Tracker.tickets.filter(t => t.outcome === 'win');
+
+    /* Filter by Price */
     if (_priceFilter !== 'all') {
-      games = games.filter(g => g.price === _priceFilter);
+      filteredWins = filteredWins.filter(t => t.price === _priceFilter);
     }
 
-    /* Search filter */
-    if (_searchQuery) {
-      const q = _searchQuery.toLowerCase();
-      games = games.filter(g =>
-        g.name.toLowerCase().includes(q) || g.num.includes(q)
-      );
+    /* Filter by Game */
+    if (_gameFilter !== 'all') {
+      filteredWins = filteredWins.filter(t => t.gameNum === _gameFilter);
     }
 
-    /* Sort: played games first, then alphabetical */
-    games.sort((a, b) => {
-      const aPlayed = _playedNums.has(a.num);
-      const bPlayed = _playedNums.has(b.num);
-      if (aPlayed && !bPlayed) return -1;
-      if (!aPlayed && bPlayed) return 1;
-      return a.name.localeCompare(b.name);
-    });
+    /* 1. Calculate Metrics */
+    const totalWins = filteredWins.length;
+    const totalCashWon = filteredWins.reduce((sum, t) => sum + (t.winAmt || 0), 0);
+    const maxWin = totalWins ? Math.max(...filteredWins.map(t => parseFloat(t.winAmt) || 0)) : 0;
 
-    const container = document.getElementById('game-catalog');
+    // Find luckiest ticket number (most occurrences among winning tickets)
+    let luckyNum = '—';
+    let maxOccur = 0;
+    const frequencies = {};
 
-    if (!games.length) {
-      container.innerHTML = '<div class="empty"><div class="empty-icon">🎰</div><p>No games match your filter.</p></div>';
+    for (const t of filteredWins) {
+      const num = (t.ticketNumber || '').trim();
+      if (!num) continue;
+      frequencies[num] = (frequencies[num] || 0) + 1;
+      if (frequencies[num] > maxOccur) {
+        maxOccur = frequencies[num];
+        luckyNum = '#' + num;
+      }
+    }
+    if (luckyNum !== '—' && maxOccur > 1) {
+      luckyNum += ` (${maxOccur}x)`;
+    }
+
+    /* Render Metrics */
+    document.getElementById('m-wins').textContent = totalWins;
+    document.getElementById('m-lucky').textContent = luckyNum;
+    document.getElementById('m-max').textContent = fmt(maxWin);
+    document.getElementById('m-total-won').textContent = fmt(totalCashWon);
+
+    /* 2. Render Historical Table */
+    renderWinsTable(filteredWins);
+
+    /* 3. Render Chart */
+    renderChart(filteredWins);
+  }
+
+  /* ── Render wins historical list ─────────────────────────── */
+  function renderWinsTable(wins) {
+    const tbody = document.getElementById('wins-table-body');
+    if (!tbody) return;
+
+    if (!wins.length) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px;">No wins matching filters.</td></tr>';
       return;
     }
 
-    container.innerHTML = games.map(g => {
-      const isPlayed = _playedNums.has(g.num);
-      const playCount = isPlayed
-        ? Tracker.tickets.filter(t => t.gameNum === g.num).length
-        : 0;
-      const closing = g.close ? `<span>Ends ${esc(g.close)}</span>` : '';
-      const topPrize = g.prizes[g.prizes.length - 1];
-
-      /* Prize rows */
-      const prizeRows = g.prizes.map((p, i) => {
-        const isTop = i === g.prizes.length - 1;
-        return `<tr${isTop ? ' class="top-prize"' : ''}>
-          <td>${isTop ? '⭐ ' : ''}${fmtPrize(p)}</td>
-          <td>${isTop ? 'TOP PRIZE' : 'Prize Tier ' + (i + 1)}</td>
-        </tr>`;
-      }).join('');
-
-      return `<div class="catalog-card${isPlayed ? ' played' : ''}" data-num="${g.num}">
-        <div class="catalog-header">
-          <div class="catalog-info">
-            <div class="catalog-name">${esc(g.name)}</div>
-            <div class="catalog-meta">
-              <span>Game #${g.num}</span>
-              ${closing}
-              ${isPlayed ? `<span class="played-badge">✓ PLAYED (${playCount})</span>` : ''}
-            </div>
-          </div>
-          <span class="catalog-price-badge">$${g.price}</span>
-          <span class="catalog-arrow">▼</span>
-        </div>
-        <div class="catalog-body">
-          <table class="prize-table">
-            <thead><tr><th>Prize Amount</th><th>Tier</th></tr></thead>
-            <tbody>${prizeRows}</tbody>
-          </table>
-          <div class="catalog-footer">
-            Top Prize: ${fmtPrize(topPrize)} · Ticket Price: $${g.price}
-          </div>
-        </div>
-      </div>`;
+    tbody.innerHTML = wins.map(t => {
+      const dateStr = t.date
+        ? new Date(t.date + 'T12:00:00').toLocaleDateString('en-US', {
+            month: 'short', day: 'numeric'
+          })
+        : '';
+      return `<tr>
+        <td><span class="ticket-badge">#${esc(t.ticketNumber || '—')}</span></td>
+        <td><div style="font-weight:600;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(t.gameName)}">${esc(t.gameName)}</div></td>
+        <td class="g" style="font-family:'Black Ops One',cursive;">+${fmtPrize(t.winAmt)}</td>
+        <td style="color:var(--muted);font-size:0.8rem;">${dateStr}</td>
+      </tr>`;
     }).join('');
+  }
+
+  /* ── Render Chart.js Bar Chart ───────────────────────────── */
+  function renderChart(wins) {
+    const ctx = document.getElementById('analytics-chart');
+    if (!ctx) return;
+
+    // Aggregate statistics by ticket number
+    const dataMap = {};
+    for (const t of wins) {
+      const num = (t.ticketNumber || '').trim();
+      if (!num) continue;
+      if (!dataMap[num]) {
+        dataMap[num] = { freq: 0, amt: 0 };
+      }
+      dataMap[num].freq += 1;
+      dataMap[num].amt += parseFloat(t.winAmt) || 0;
+    }
+
+    // Sort ticket numbers numerically
+    const sortedKeys = Object.keys(dataMap).sort((a, b) => {
+      const na = parseInt(a, 10);
+      const nb = parseInt(b, 10);
+      if (isNaN(na) || isNaN(nb)) return a.localeCompare(b);
+      return na - nb;
+    });
+
+    const labels = sortedKeys.map(k => '#' + k);
+    const dataValues = sortedKeys.map(k => _chartType === 'freq' ? dataMap[k].freq : dataMap[k].amt);
+
+    if (_chartInstance) {
+      _chartInstance.destroy();
+    }
+
+    if (labels.length === 0) {
+      // Draw empty placeholder text on canvas
+      const canvas = document.getElementById('analytics-chart');
+      const canvasCtx = canvas.getContext('2d');
+      canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+      canvasCtx.fillStyle = '#777';
+      canvasCtx.font = '16px Barlow';
+      canvasCtx.textAlign = 'center';
+      canvasCtx.fillText('Add tickets with winning numbers to see the distribution chart.', canvas.width / 2, canvas.height / 2);
+      return;
+    }
+
+    const valueLabel = _chartType === 'freq' ? 'Wins Frequency' : 'Total Amount Won ($)';
+
+    _chartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: valueLabel,
+          data: dataValues,
+          backgroundColor: 'rgba(255, 215, 0, 0.75)',
+          borderColor: '#FFD700',
+          borderWidth: 1.5,
+          borderRadius: 6,
+          hoverBackgroundColor: '#FFD700',
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            backgroundColor: '#181818',
+            titleColor: '#FFD700',
+            titleFont: { family: 'Black Ops One', size: 14 },
+            bodyColor: '#F0F0F0',
+            bodyFont: { family: 'Barlow', size: 13 },
+            borderColor: '#252525',
+            borderWidth: 1,
+            displayColors: false,
+            callbacks: {
+              label: function (context) {
+                const val = context.parsed.y;
+                return _chartType === 'freq' ? `${val} wins` : `$${val.toFixed(2)}`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: {
+              color: '#222'
+            },
+            ticks: {
+              color: '#777',
+              font: { family: 'Barlow Condensed', size: 12, weight: '600' }
+            }
+          },
+          y: {
+            grid: {
+              color: '#222'
+            },
+            ticks: {
+              color: '#777',
+              font: { family: 'Barlow', size: 11 },
+              callback: function (value) {
+                return _chartType === 'freq' ? value : '$' + value;
+              }
+            }
+          }
+        }
+      }
+    });
   }
 
   /* ── Wire events ─────────────────────────────────────────── */
@@ -173,31 +339,50 @@
 
       document.querySelectorAll('.price-chip').forEach(c => c.classList.remove('active'));
       chip.classList.add('active');
-      renderCatalog();
+      updateDashboard();
     });
 
-    /* Search */
-    document.getElementById('prizes-search').addEventListener('input', (e) => {
-      clearTimeout(_searchDebounce);
-      _searchDebounce = setTimeout(() => {
-        _searchQuery = e.target.value.trim();
-        renderCatalog();
-      }, 200);
+    /* Game filter selection */
+    document.getElementById('anal-game-filter').addEventListener('change', (e) => {
+      _gameFilter = e.target.value;
+      updateDashboard();
     });
 
-    /* Expand/collapse cards */
-    document.getElementById('game-catalog').addEventListener('click', (e) => {
-      const header = e.target.closest('.catalog-header');
-      if (!header) return;
-      const card = header.closest('.catalog-card');
-      if (!card) return;
-      card.classList.toggle('open');
+    /* Chart toggles */
+    document.getElementById('toggle-freq').addEventListener('click', (e) => {
+      _chartType = 'freq';
+      document.getElementById('toggle-freq').classList.add('active');
+      document.getElementById('toggle-amt').classList.remove('active');
+      updateDashboard();
+    });
+
+    document.getElementById('toggle-amt').addEventListener('click', (e) => {
+      _chartType = 'amt';
+      document.getElementById('toggle-amt').classList.add('active');
+      document.getElementById('toggle-freq').classList.remove('active');
+      updateDashboard();
     });
   }
 
   /* ── Helpers ─────────────────────────────────────────────── */
   function esc(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function fmt(n) {
+    return '$' + Number(n).toFixed(2);
+  }
+
+  function fmtPrize(n) {
+    if (n >= 1000000) {
+      const millions = n / 1000000;
+      return (Number.isInteger(millions) ? millions : millions.toFixed(1)) + "M";
+    }
+    if (n >= 1000) {
+      const thousands = n / 1000;
+      return (Number.isInteger(thousands) ? thousands : thousands.toFixed(1)) + "K";
+    }
+    return n;
   }
 
   function showToast(msg, type) {
