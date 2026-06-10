@@ -276,6 +276,11 @@ const UI = {
         ? `<span class="ticket-badge">#${UI.esc(t.ticketNumber)}</span>`
         : '';
 
+      const status = t.status || 'approved';
+      const statusBadge = isWin
+        ? `<span class="status-badge ${status}">${status}</span>`
+        : '';
+
       return `<div class="rec-card">
         <div class="rec-bar ${t.outcome}"></div>
         <div class="rec-info">
@@ -284,6 +289,7 @@ const UI = {
             ${dateStr ? `<span>📅 ${dateStr}</span>` : ''}
             <span>Game #${t.gameNum}</span>
             <span class="badge ${t.outcome}">${isWin ? 'WIN' : 'NO WIN'}</span>
+            ${statusBadge}
             ${ticketBadge}
           </div>
         </div>

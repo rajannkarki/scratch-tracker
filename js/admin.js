@@ -42,10 +42,7 @@
         _allUsers = await loadAllUsers();
         _allTickets = await loadAllTickets();
 
-        renderSystemStats(_allUsers, _allTickets);
-        renderUserTable(_allUsers);
-        renderCommunityChart(_allTickets);
-        renderCommunityTable(_allTickets);
+        renderAllAdminUI();
       } catch (e) {
         console.error('Admin data load failed:', e);
         showToast('Failed to load admin data.', 'e');
@@ -113,6 +110,89 @@
     } catch (e) {
       console.error('Role toggle failed:', e);
       showToast('Failed to update role.', 'e');
+    }
+  }
+
+  /* ── Moderation Queue Logic ──────────────────────────────── */
+  function renderAllAdminUI() {
+    // Treat tickets with no status or 'approved' status as approved
+    const approvedTickets = _allTickets.filter(t => t.status === 'approved' || !t.status);
+    const pendingTickets = _allTickets.filter(t => t.status === 'pending');
+
+    renderSystemStats(_allUsers, approvedTickets);
+    renderUserTable(_allUsers);
+    renderModerationTable(pendingTickets);
+    renderCommunityChart(approvedTickets);
+    renderCommunityTable(approvedTickets);
+  }
+
+  function renderModerationTable(pendingTickets) {
+    const tbody = document.getElementById('moderation-table-body');
+    if (!tbody) return;
+
+    if (!pendingTickets.length) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px;">No tickets pending moderation.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = pendingTickets.map(t => {
+      const user = _allUsers.find(u => u.uid === t.userId);
+      const userLabel = user ? (user.displayName || user.email) : 'Unknown';
+      const outcomeLabel = t.outcome === 'win'
+        ? `<span class="status-badge approved">+${fmtPrize(t.winAmt)}</span>`
+        : `<span class="status-badge" style="color:var(--muted);background:rgba(255,255,255,0.05);border:1px solid var(--border);">Loss</span>`;
+
+      const dateStr = t.date
+        ? new Date(t.date + 'T12:00:00').toLocaleDateString('en-US', {
+            month: 'short', day: 'numeric'
+          })
+        : '—';
+
+      return `<tr>
+        <td style="font-weight:600;font-size:0.85rem;">${esc(userLabel)}</td>
+        <td><span class="user-state-badge" style="cursor:default;">${esc(t.state || 'TX')}</span></td>
+        <td><div style="font-weight:600;max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(t.gameName)}">${esc(t.gameName)} (${esc(t.gameNum)})</div></td>
+        <td>$${t.price}</td>
+        <td>${outcomeLabel}</td>
+        <td><span class="ticket-badge">#${esc(t.ticketNumber || '—')}</span></td>
+        <td style="color:var(--muted);font-size:0.8rem;">${dateStr}</td>
+        <td>
+          <div style="display:flex;gap:6px;">
+            <button class="toggle-btn approve-ticket-btn" data-uid="${t.userId}" data-tid="${t.id}" style="padding:4px 10px;font-size:0.75rem;background:#10B981;color:#fff;border:none;border-radius:4px;">Approve</button>
+            <button class="toggle-btn reject-ticket-btn" data-uid="${t.userId}" data-tid="${t.id}" style="padding:4px 10px;font-size:0.75rem;background:#EF476F;color:#fff;border:none;border-radius:4px;">Reject</button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  async function approveTicket(userId, ticketId) {
+    try {
+      await db.collection('users').doc(userId).collection('tickets').doc(ticketId).update({ status: 'approved' });
+      
+      const ticket = _allTickets.find(t => t.id === ticketId && t.userId === userId);
+      if (ticket) ticket.status = 'approved';
+
+      renderAllAdminUI();
+      showToast('Ticket approved successfully.', 's');
+    } catch (e) {
+      console.error('Approve ticket failed:', e);
+      showToast('Failed to approve ticket.', 'e');
+    }
+  }
+
+  async function rejectTicket(userId, ticketId) {
+    try {
+      await db.collection('users').doc(userId).collection('tickets').doc(ticketId).update({ status: 'rejected' });
+      
+      const ticket = _allTickets.find(t => t.id === ticketId && t.userId === userId);
+      if (ticket) ticket.status = 'rejected';
+
+      renderAllAdminUI();
+      showToast('Ticket rejected successfully.', 's');
+    } catch (e) {
+      console.error('Reject ticket failed:', e);
+      showToast('Failed to reject ticket.', 'e');
     }
   }
 
@@ -334,14 +414,16 @@
       _chartType = 'freq';
       document.getElementById('toggle-freq').classList.add('active');
       document.getElementById('toggle-amt').classList.remove('active');
-      renderCommunityChart(_allTickets);
+      const approved = _allTickets.filter(t => t.status === 'approved' || !t.status);
+      renderCommunityChart(approved);
     });
 
     document.getElementById('toggle-amt').addEventListener('click', () => {
       _chartType = 'amt';
       document.getElementById('toggle-amt').classList.add('active');
       document.getElementById('toggle-freq').classList.remove('active');
-      renderCommunityChart(_allTickets);
+      const approved = _allTickets.filter(t => t.status === 'approved' || !t.status);
+      renderCommunityChart(approved);
     });
 
     /* Role toggle buttons — delegated */
@@ -352,6 +434,28 @@
       const currentRole = btn.dataset.role;
       toggleRole(uid, currentRole);
     });
+
+    /* Ticket moderation — delegated */
+    const modBody = document.getElementById('moderation-table-body');
+    if (modBody) {
+      modBody.addEventListener('click', (e) => {
+        const approveBtn = e.target.closest('.approve-ticket-btn');
+        if (approveBtn) {
+          const uid = approveBtn.dataset.uid;
+          const tid = approveBtn.dataset.tid;
+          approveTicket(uid, tid);
+          return;
+        }
+
+        const rejectBtn = e.target.closest('.reject-ticket-btn');
+        if (rejectBtn) {
+          const uid = rejectBtn.dataset.uid;
+          const tid = rejectBtn.dataset.tid;
+          rejectTicket(uid, tid);
+          return;
+        }
+      });
+    }
 
     /* Profile Modal triggers */
     const badgeEl = document.getElementById('user-state-badge');

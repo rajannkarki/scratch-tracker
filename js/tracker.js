@@ -57,6 +57,7 @@ const Tracker = {
       ticketNumber: ticketData.ticketNumber || "",
       date:         ticketData.date,           // 'YYYY-MM-DD'
       state:        Auth.currentUser.state || "TX",
+      status:       "pending",                 // 'pending' | 'approved' | 'rejected'
       createdAt:    firebase.firestore.FieldValue.serverTimestamp()
     };
 

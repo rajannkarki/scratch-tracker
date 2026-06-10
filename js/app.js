@@ -230,9 +230,15 @@
         return;
       }
 
-      if (isWin && !ticketNum) {
-        UI.showToast('Enter the winning ticket number!', 'e');
-        return;
+      if (isWin) {
+        if (!ticketNum) {
+          UI.showToast('Enter the winning ticket number!', 'e');
+          return;
+        }
+        if (!/^\d{1,3}$/.test(ticketNum)) {
+          UI.showToast('Ticket number must be numeric and between 1 and 3 digits!', 'e');
+          return;
+        }
       }
 
       const ticketData = {

@@ -449,7 +449,7 @@
               id: doc.id,
               userId: doc.ref.parent.parent.id,
               ...doc.data()
-            })).filter(t => (t.state || 'TX') === (Auth.currentUser.state || 'TX'));
+            })).filter(t => (t.state || 'TX') === (Auth.currentUser.state || 'TX') && t.status === 'approved');
           } catch (e) {
             console.error('Failed to load community tickets:', e);
             showToast('Failed to load community data.', 'e');
