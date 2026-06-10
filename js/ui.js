@@ -402,6 +402,12 @@ const UI = {
     const stateEl = document.getElementById('user-state-badge');
     if (nameEl) nameEl.textContent = user.displayName || user.email;
     if (stateEl) stateEl.textContent = user.state || 'TX';
+
+    // Show/hide admin link
+    const adminLink = document.getElementById('nav-admin');
+    if (adminLink) {
+      adminLink.style.display = Auth.isAdmin() ? '' : 'none';
+    }
   },
 
   populateProfileStateDropdown() {

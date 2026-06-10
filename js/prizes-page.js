@@ -9,6 +9,13 @@
   let _gameFilter = 'all';
   let _chartType = 'freq'; // 'freq' | 'amt'
   let _chartInstance = null;
+  let _personalTickets = [];
+  let _communityTickets = [];
+  let _currentScope = 'personal'; // 'personal' | 'community'
+
+  function getActiveTickets() {
+    return _currentScope === 'personal' ? _personalTickets : _communityTickets;
+  }
 
   document.addEventListener('DOMContentLoaded', () => {
     /* 1. Check Firebase Config */
@@ -30,28 +37,27 @@
       if (nameEl) nameEl.textContent = user.displayName || user.email;
       if (stateEl) stateEl.textContent = user.state || 'TX';
 
+      /* Show/hide admin link */
+      const adminLink = document.getElementById('nav-admin');
+      if (adminLink) {
+        adminLink.style.display = Auth.isAdmin() ? '' : 'none';
+      }
+
+      /* Show/hide scope toggle for viewers/admins */
+      const isViewerOrAdmin = Auth.isViewer() || Auth.isAdmin();
+      const scopeCard = document.getElementById('scope-toggle-card');
+      if (scopeCard) {
+        scopeCard.style.display = isViewerOrAdmin ? 'flex' : 'none';
+      }
+
       /* Load tickets for analytics */
       try {
-        await Tracker.loadTickets(user.uid, user.state || 'TX');
+        _personalTickets = await Tracker.loadTickets(user.uid, user.state || 'TX');
       } catch (e) {
         console.error('Failed to load tickets:', e);
       }
 
-      const wins = Tracker.tickets.filter(t => t.outcome === 'win');
-      if (wins.length === 0) {
-        // Show empty analytics message
-        document.getElementById('no-tickets-msg').style.display = '';
-        document.getElementById('analytics-grid').style.display = 'none';
-        document.getElementById('price-filter').style.display = 'none';
-        document.getElementById('anal-game-filter').parentElement.style.display = 'none';
-      } else {
-        document.getElementById('no-tickets-msg').style.display = 'none';
-        document.getElementById('analytics-grid').style.display = '';
-      }
-
-      buildPriceFilter();
-      buildGameFilter(user.state);
-      updateDashboard();
+      refreshDashboard(user.state);
       hideLoading();
     });
 
@@ -65,9 +71,43 @@
     if (el) el.classList.add('hidden');
   }
 
+  /* ── Dashboard Refreshing ────────────────────────────────── */
+  function refreshDashboard(stateCode) {
+    const tickets = getActiveTickets();
+    const wins = tickets.filter(t => t.outcome === 'win');
+    const noTicketsEl = document.getElementById('no-tickets-msg');
+    const gridEl = document.getElementById('analytics-grid');
+    const priceEl = document.getElementById('price-filter');
+    const gameSelectEl = document.getElementById('anal-game-filter');
+
+    if (wins.length === 0) {
+      if (noTicketsEl) {
+        noTicketsEl.querySelector('p').textContent = _currentScope === 'personal'
+          ? 'No winning tickets logged yet. Start recording your scratch-off wins in the Tracker to unlock analytics!'
+          : 'No community winning tickets logged yet for this state.';
+        noTicketsEl.style.display = '';
+        const goBtn = noTicketsEl.querySelector('.add-btn');
+        if (goBtn) goBtn.style.display = _currentScope === 'personal' ? 'inline-block' : 'none';
+      }
+      if (gridEl) gridEl.style.display = 'none';
+      if (priceEl) priceEl.style.display = 'none';
+      if (gameSelectEl) gameSelectEl.parentElement.style.display = 'none';
+    } else {
+      if (noTicketsEl) noTicketsEl.style.display = 'none';
+      if (gridEl) gridEl.style.display = '';
+      if (priceEl) priceEl.style.display = '';
+      if (gameSelectEl) gameSelectEl.parentElement.style.display = '';
+    }
+
+    buildPriceFilter();
+    buildGameFilter(stateCode || 'TX');
+    updateDashboard();
+  }
+
   /* ── Build filters ───────────────────────────────────────── */
   function buildPriceFilter() {
-    const prices = [...new Set(Tracker.tickets.map(g => g.price))].sort((a, b) => a - b);
+    const tickets = getActiveTickets();
+    const prices = [...new Set(tickets.map(g => g.price))].sort((a, b) => a - b);
     const container = document.getElementById('price-filter');
     if (!container) return;
 
@@ -76,6 +116,7 @@
       if (p) html += `<button class="price-chip" data-price="${p}">$${p}</button>`;
     }
     container.innerHTML = html;
+    _priceFilter = 'all';
   }
 
   function buildGameFilter(stateCode) {
@@ -85,8 +126,8 @@
     const stateGames = getGamesForState(stateCode);
     let html = '<option value="all">All Games</option>';
 
-    // Get unique games played by user in tickets
-    const playedGameNums = [...new Set(Tracker.tickets.map(t => t.gameNum))];
+    const tickets = getActiveTickets();
+    const playedGameNums = [...new Set(tickets.map(t => t.gameNum))];
     const playedGamesList = [];
 
     for (const num of playedGameNums) {
@@ -94,7 +135,7 @@
       if (g) {
         playedGamesList.push(g);
       } else {
-        const ticket = Tracker.tickets.find(t => t.gameNum === num);
+        const ticket = tickets.find(t => t.gameNum === num);
         if (ticket) {
           playedGamesList.push({ num: ticket.gameNum, name: ticket.gameName, price: ticket.price });
         }
@@ -108,11 +149,13 @@
       html += `<option value="${g.num}">${esc(g.name)} ($${g.price})</option>`;
     }
     select.innerHTML = html;
+    _gameFilter = 'all';
   }
 
   /* ── Update Dashboard Metrics & Visuals ──────────────────── */
   function updateDashboard() {
-    let filteredWins = Tracker.tickets.filter(t => t.outcome === 'win');
+    const tickets = getActiveTickets();
+    let filteredWins = tickets.filter(t => t.outcome === 'win');
 
     /* Filter by Price */
     if (_priceFilter !== 'all') {
@@ -248,13 +291,13 @@
       return `<tr>
         <td><span class="ticket-badge">#${esc(t.ticketNumber || '—')}</span></td>
         <td><div style="font-weight:600;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(t.gameName)}">${esc(t.gameName)}</div></td>
-        <td class="g" style="font-family:'Black Ops One',cursive;">+${fmtPrize(t.winAmt)}</td>
+        <td class="g" style="font-family:'Outfit',sans-serif;font-weight:700;">+${fmtPrize(t.winAmt)}</td>
         <td style="color:var(--muted);font-size:0.8rem;">${dateStr}</td>
       </tr>`;
     }).join('');
   }
 
-  /* ── Render Chart.js Bar Chart ───────────────────────────── */
+  /* ── Render Chart.js Line Chart ───────────────────────────── */
   function renderChart(wins) {
     const ctx = document.getElementById('analytics-chart');
     if (!ctx) return;
@@ -292,7 +335,7 @@
       const canvasCtx = canvas.getContext('2d');
       canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
       canvasCtx.fillStyle = '#777';
-      canvasCtx.font = '16px Barlow';
+      canvasCtx.font = '16px Inter';
       canvasCtx.textAlign = 'center';
       canvasCtx.fillText('Add tickets with winning numbers to see the distribution chart.', canvas.width / 2, canvas.height / 2);
       return;
@@ -300,18 +343,29 @@
 
     const valueLabel = _chartType === 'freq' ? 'Wins Frequency' : 'Total Amount Won ($)';
 
+    const chartCtx = ctx.getContext('2d');
+    const gradient = chartCtx.createLinearGradient(0, 0, 0, 400);
+    gradient.addColorStop(0, 'rgba(6, 214, 160, 0.3)');
+    gradient.addColorStop(1, 'transparent');
+
     _chartInstance = new Chart(ctx, {
-      type: 'bar',
+      type: 'line',
       data: {
         labels: labels,
         datasets: [{
           label: valueLabel,
           data: dataValues,
-          backgroundColor: 'rgba(255, 215, 0, 0.75)',
-          borderColor: '#FFD700',
-          borderWidth: 1.5,
-          borderRadius: 6,
-          hoverBackgroundColor: '#FFD700',
+          borderColor: '#06D6A0',
+          backgroundColor: gradient,
+          borderWidth: 2.5,
+          tension: 0.4,
+          fill: true,
+          pointBackgroundColor: '#06D6A0',
+          pointBorderColor: '#0a0a12',
+          pointBorderWidth: 2,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          pointHoverBackgroundColor: '#FFD700',
         }]
       },
       options: {
@@ -323,10 +377,10 @@
           },
           tooltip: {
             backgroundColor: '#181818',
-            titleColor: '#FFD700',
-            titleFont: { family: 'Black Ops One', size: 14 },
+            titleColor: '#06D6A0',
+            titleFont: { family: 'Outfit', size: 14, weight: '700' },
             bodyColor: '#F0F0F0',
-            bodyFont: { family: 'Barlow', size: 13 },
+            bodyFont: { family: 'Inter', size: 13 },
             borderColor: '#252525',
             borderWidth: 1,
             displayColors: false,
@@ -345,7 +399,7 @@
             },
             ticks: {
               color: '#777',
-              font: { family: 'Barlow Condensed', size: 12, weight: '600' }
+              font: { family: 'Inter', size: 11, weight: '500' }
             }
           },
           y: {
@@ -354,7 +408,7 @@
             },
             ticks: {
               color: '#777',
-              font: { family: 'Barlow', size: 11 },
+              font: { family: 'Inter', size: 11 },
               callback: function (value) {
                 return _chartType === 'freq' ? value : '$' + value;
               }
@@ -367,6 +421,46 @@
 
   /* ── Wire events ─────────────────────────────────────────── */
   function wireEvents() {
+    /* Scope Toggles */
+    const personalBtn = document.getElementById('scope-personal');
+    const communityBtn = document.getElementById('scope-community');
+
+    if (personalBtn && communityBtn) {
+      personalBtn.addEventListener('click', () => {
+        if (_currentScope === 'personal') return;
+        _currentScope = 'personal';
+        personalBtn.classList.add('active');
+        communityBtn.classList.remove('active');
+        refreshDashboard(Auth.currentUser.state);
+      });
+
+      communityBtn.addEventListener('click', async () => {
+        if (_currentScope === 'community') return;
+        _currentScope = 'community';
+        communityBtn.classList.add('active');
+        personalBtn.classList.remove('active');
+
+        if (_communityTickets.length === 0) {
+          const loading = document.getElementById('loading-overlay');
+          if (loading) loading.classList.remove('hidden');
+          try {
+            const snap = await db.collectionGroup('tickets').get();
+            _communityTickets = snap.docs.map(doc => ({
+              id: doc.id,
+              userId: doc.ref.parent.parent.id,
+              ...doc.data()
+            })).filter(t => (t.state || 'TX') === (Auth.currentUser.state || 'TX'));
+          } catch (e) {
+            console.error('Failed to load community tickets:', e);
+            showToast('Failed to load community data.', 'e');
+          } finally {
+            if (loading) loading.classList.add('hidden');
+          }
+        }
+        refreshDashboard(Auth.currentUser.state);
+      });
+    }
+
     /* Logout */
     document.getElementById('logout-btn').addEventListener('click', async () => {
       try {

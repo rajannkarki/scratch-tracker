@@ -28,7 +28,8 @@ const Auth = {
             uid:         firebaseUser.uid,
             email:       firebaseUser.email,
             displayName: profile.displayName || firebaseUser.displayName || "",
-            state:       profile.state || ""
+            state:       profile.state || "",
+            role:        profile.role || ""
           };
         } catch (err) {
           // Fallback to auth-only data if Firestore read fails
@@ -36,7 +37,8 @@ const Auth = {
             uid:         firebaseUser.uid,
             email:       firebaseUser.email,
             displayName: firebaseUser.displayName || "",
-            state:       ""
+            state:       "",
+            role:        ""
           };
         }
       } else {
@@ -65,6 +67,7 @@ const Auth = {
       email,
       displayName,
       state,
+      role: "",
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
@@ -72,7 +75,8 @@ const Auth = {
       uid:         cred.user.uid,
       email,
       displayName,
-      state
+      state,
+      role:        ""
     };
 
     return Auth.currentUser;
@@ -115,7 +119,8 @@ const Auth = {
       profile = {
         email: cred.user.email,
         displayName: cred.user.displayName || "User",
-        state: "TX", // Default to TX, user can change in navbar
+        state: "TX", // Default to TX, user can change in profile
+        role: "",
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       };
       await db.collection("users").doc(cred.user.uid).set(profile);
@@ -131,7 +136,8 @@ const Auth = {
       uid: cred.user.uid,
       email: cred.user.email,
       displayName: profile.displayName || cred.user.displayName || "",
-      state: profile.state || "TX"
+      state: profile.state || "TX",
+      role: profile.role || ""
     };
 
     return Auth.currentUser;
@@ -171,5 +177,22 @@ const Auth = {
     // Mirror changes locally
     if (allowed.displayName !== undefined) Auth.currentUser.displayName = allowed.displayName;
     if (allowed.state !== undefined)       Auth.currentUser.state       = allowed.state;
+  },
+
+  /**
+   * Check if the current user has admin role.
+   * @returns {boolean}
+   */
+  isAdmin() {
+    return Auth.currentUser && Auth.currentUser.role === "admin";
+  },
+
+  /**
+   * Check if the current user has viewer role (or admin, since admins can view too).
+   * @returns {boolean}
+   */
+  isViewer() {
+    if (!Auth.currentUser) return false;
+    return Auth.currentUser.role === "viewer" || Auth.currentUser.role === "admin";
   }
 };

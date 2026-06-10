@@ -88,6 +88,82 @@ const FIREBASE_CONFIG = {
 
 ---
 
+## 🔒 Firestore Security Rules & Admin Setup
+
+To support the Admin Dashboard and Community Analytics features, you need to configure your Firestore rules and roles as follows:
+
+### Step 1: Update Firestore Security Rules
+
+1. Go to **Firestore Database** in your Firebase Console.
+2. Select the **"Rules"** tab.
+3. Replace the existing rules with the following:
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if requesting user is an admin
+    function isAdmin() {
+      return request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Helper function to check if requesting user is a viewer (or admin)
+    function isViewer() {
+      return request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        (
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'viewer' ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+        );
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+
+      // Tickets subcollection
+      match /tickets/{ticketId} {
+        allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      }
+    }
+
+    // Collection Group rule for tickets
+    // This allows query on collectionGroup("tickets") for admins and authorized viewers
+    match /{path=**}/tickets/{ticketId} {
+      allow read: if request.auth != null && (isViewer() || isAdmin());
+    }
+  }
+}
+```
+
+4. Click **"Publish"**.
+
+### Step 2: Set Up Firestore Indexes (Required for Admin and Community Charts)
+
+The app queries tickets across all users (Collection Group query). This requires a composite index:
+1. When you first visit the Admin Dashboard or switch to Community Analytics as an authorized user, open your browser console (`F12` key → `Console`).
+2. You will see a Firestore warning/error message containing a link starting with `https://console.firebase.google.com/project/...`.
+3. **Click the link in the console.** This takes you directly to Firebase Console with index fields auto-populated.
+4. Click **"Create Index"** and wait 2-3 minutes for it to build.
+
+### Step 3: Grant Yourself Admin Rights
+
+1. Register or sign in to your Scratch Tracker app.
+2. In Firebase Console, go to **Firestore Database** → **Data**.
+3. Select the `users` collection, find your user document (match your email/UID).
+4. Add a field:
+   - Field name: `role`
+   - Type: `string`
+   - Value: `admin`
+5. Click **"Add"** or save.
+6. Refresh the app page. An **"Admin"** navigation tab will appear at the top, allowing you to manage other users and grant/revoke viewer access.
+
+---
+
 ## 🌐 Deploy to GitHub Pages (Free)
 
 ### Step 1: Create a GitHub Repository
