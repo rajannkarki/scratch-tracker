@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TX Scratch Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --gold: #FFD700;
+    --gold-dark: #B8970A;
+    --green: #00C853;
+    --red: #FF1744;
+    --bg: #0A0A0A;
+    --card: #111111;
+    --card2: #181818;
+    --border: #252525;
+    --border2: #333;
+    --text: #F0F0F0;
+    --muted: #777;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    min-height: 100vh;
+    background-image:
+      radial-gradient(ellipse at 15% 0%, rgba(255,215,0,0.07) 0%, transparent 55%),
+      radial-gradient(ellipse at 85% 100%, rgba(0,200,83,0.05) 0%, transparent 55%);
+  }
+
+  /* ── HEADER ── */
+  header {
+    padding: 22px 20px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 14px;
+    background: linear-gradient(180deg, #131313 0%, var(--bg) 100%);
+  }
+  .logo { font-size: 2rem; filter: drop-shadow(0 0 10px rgba(255,215,0,0.5)); }
+  header h1 {
+    font-family: 'Black Ops One', cursive;
+    font-size: 1.6rem; color: var(--gold); letter-spacing: 1px;
+    text-shadow: 0 0 24px rgba(255,215,0,0.3); line-height: 1;
+  }
+  header p {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.78rem; color: var(--muted); letter-spacing: 2px;
+    text-transform: uppercase; margin-top: 3px;
+  }
+
+  /* ── STATS ── */
+  .stats {
+    display: grid; grid-template-columns: repeat(4,1fr);
+    gap: 1px; background: var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .stat { background: var(--card); padding: 14px 10px; text-align: center; }
+  .stat-val { font-family: 'Black Ops One', cursive; font-size: 1.3rem; color: var(--gold); }
+  .stat-val.g { color: var(--green); }
+  .stat-val.r { color: var(--red); }
+  .stat-lbl { font-family: 'Barlow Condensed', sans-serif; font-size: 0.68rem; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; margin-top: 2px; }
+
+  /* ── MAIN ── */
+  .main { max-width: 860px; margin: 0 auto; padding: 20px 16px; display: flex; flex-direction: column; gap: 20px; }
+
+  /* ── LOG FORM ── */
+  .form-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px; position: relative; overflow: hidden;
+  }
+  .form-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, var(--gold-dark), #FFF176, var(--gold-dark));
+  }
+  .form-title {
+    font-family: 'Barlow Condensed', sans-serif; font-size: 0.9rem; font-weight: 700;
+    letter-spacing: 2px; text-transform: uppercase; color: var(--gold); margin-bottom: 14px;
+  }
+
+  /* Game selector */
+  .game-search-wrap { position: relative; margin-bottom: 12px; }
+  .game-search-input {
+    width: 100%; background: var(--card2); border: 1px solid var(--border2);
+    border-radius: 8px; color: var(--text); font-family: 'Barlow', sans-serif;
+    font-size: 0.95rem; padding: 11px 14px 11px 38px; outline: none;
+    transition: border-color 0.2s;
+  }
+  .game-search-input:focus { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(255,215,0,0.1); }
+  .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 1rem; pointer-events: none; }
+  .game-dropdown {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+    background: #1a1a1a; border: 1px solid var(--border2); border-radius: 8px;
+    max-height: 240px; overflow-y: auto; z-index: 50; display: none;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  }
+  .game-dropdown.open { display: block; }
+  .game-opt {
+    padding: 10px 14px; cursor: pointer; display: flex; justify-content: space-between;
+    align-items: center; border-bottom: 1px solid var(--border); transition: background 0.15s;
+  }
+  .game-opt:last-child { border-bottom: none; }
+  .game-opt:hover, .game-opt.focused { background: #242424; }
+  .game-opt-name { font-size: 0.9rem; font-weight: 500; }
+  .game-opt-meta { font-size: 0.75rem; color: var(--muted); font-family: 'Barlow Condensed', sans-serif; letter-spacing: 0.5px; }
+  .selected-game {
+    display: none; align-items: center; justify-content: space-between;
+    background: rgba(255,215,0,0.07); border: 1px solid rgba(255,215,0,0.25);
+    border-radius: 8px; padding: 10px 14px; margin-bottom: 12px;
+  }
+  .selected-game.show { display: flex; }
+  .sel-name { font-family: 'Barlow Condensed', sans-serif; font-size: 1rem; font-weight: 700; color: var(--gold); }
+  .sel-price { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+  .change-btn { font-size: 0.75rem; color: var(--muted); background: none; border: 1px solid var(--border2); border-radius: 6px; padding: 4px 10px; cursor: pointer; transition: color 0.2s; }
+  .change-btn:hover { color: var(--text); }
+
+  /* Prize chips */
+  .prize-section { margin-bottom: 14px; }
+  .prize-label {
+    font-family: 'Barlow Condensed', sans-serif; font-size: 0.75rem; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 8px;
+  }
+  .prize-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+  .chip {
+    padding: 7px 14px; border-radius: 20px; border: 1px solid var(--border2);
+    background: var(--card2); color: var(--muted); font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.85rem; font-weight: 600; letter-spacing: 0.5px; cursor: pointer;
+    transition: all 0.15s; user-select: none;
+  }
+  .chip:hover { border-color: var(--gold); color: var(--gold); }
+  .chip.selected { background: var(--gold); color: #000; border-color: var(--gold); font-weight: 700; box-shadow: 0 0 10px rgba(255,215,0,0.3); }
+  .chip.loss-chip { border-color: rgba(255,23,68,0.4); color: #666; }
+  .chip.loss-chip:hover, .chip.loss-chip.selected { background: rgba(255,23,68,0.15); color: var(--red); border-color: var(--red); }
+
+  /* Custom amount */
+  .custom-row { display: flex; gap: 8px; align-items: center; margin-bottom: 14px; }
+  .custom-input {
+    flex: 1; background: var(--card2); border: 1px solid var(--border2); border-radius: 8px;
+    color: var(--text); font-family: 'Barlow', sans-serif; font-size: 0.95rem;
+    padding: 9px 12px; outline: none; transition: border-color 0.2s;
+  }
+  .custom-input:focus { border-color: var(--gold); }
+  .custom-input::placeholder { color: #444; }
+
+  /* Date row */
+  .date-row { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+  .date-row label { font-family: 'Barlow Condensed', sans-serif; font-size: 0.75rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+  .date-input {
+    background: var(--card2); border: 1px solid var(--border2); border-radius: 8px;
+    color: var(--text); font-family: 'Barlow', sans-serif; font-size: 0.9rem;
+    padding: 8px 12px; outline: none; transition: border-color 0.2s;
+  }
+  .date-input:focus { border-color: var(--gold); }
+
+  .add-btn {
+    width: 100%; padding: 13px;
+    background: linear-gradient(135deg, var(--gold-dark), var(--gold));
+    color: #000; border: none; border-radius: 8px;
+    font-family: 'Black Ops One', cursive; font-size: 1rem; letter-spacing: 1px;
+    cursor: pointer; transition: transform 0.15s, opacity 0.2s;
+  }
+  .add-btn:hover { transform: translateY(-1px); opacity: 0.92; }
+  .add-btn:active { transform: translateY(0); }
+  .add-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+  /* ── FILTER ── */
+  .filter-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .f-btn {
+    padding: 7px 16px; border-radius: 20px; border: 1px solid var(--border);
+    background: transparent; color: var(--muted); font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.8rem; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; transition: all 0.2s;
+  }
+  .f-btn.active { background: var(--gold); color: #000; border-color: var(--gold); font-weight: 700; }
+  .srch {
+    margin-left: auto; max-width: 190px; padding: 7px 14px;
+    background: var(--card2); border: 1px solid var(--border); border-radius: 20px;
+    color: var(--text); font-family: 'Barlow', sans-serif; font-size: 0.85rem; outline: none;
+    transition: border-color 0.2s;
+  }
+  .srch:focus { border-color: var(--gold); }
+
+  /* ── RECORDS ── */
+  .sec-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .sec-title { font-family: 'Barlow Condensed', sans-serif; font-size: 0.9rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+  .rec-count { font-family: 'Barlow Condensed', sans-serif; font-size: 0.78rem; color: var(--muted); }
+  .records { display: flex; flex-direction: column; gap: 8px; }
+
+  .rec-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 13px 15px; display: grid; grid-template-columns: 4px 1fr auto auto;
+    gap: 13px; align-items: center; animation: fadeIn 0.25s ease;
+    transition: border-color 0.2s;
+  }
+  .rec-card:hover { border-color: var(--border2); }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
+
+  .rec-bar { width: 4px; height: 44px; border-radius: 4px; align-self: center; }
+  .rec-bar.win { background: var(--green); box-shadow: 0 0 8px rgba(0,200,83,0.4); }
+  .rec-bar.loss { background: #333; }
+
+  .rec-info {}
+  .rec-name { font-family: 'Barlow Condensed', sans-serif; font-size: 1rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rec-meta { font-size: 0.77rem; color: var(--muted); margin-top: 3px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .badge { display: inline-block; border-radius: 4px; font-family: 'Barlow Condensed', sans-serif; font-size: 0.68rem; font-weight: 700; letter-spacing: 1px; padding: 1px 6px; text-transform: uppercase; }
+  .badge.win { background: rgba(0,200,83,0.12); color: var(--green); border: 1px solid rgba(0,200,83,0.25); }
+  .badge.loss { background: rgba(255,255,255,0.04); color: #555; border: 1px solid #2a2a2a; }
+
+  .rec-amt { text-align: right; }
+  .amt-val { font-family: 'Black Ops One', cursive; font-size: 1.2rem; }
+  .amt-val.win { color: var(--green); }
+  .amt-val.loss { color: #444; }
+  .amt-cost { font-size: 0.74rem; color: var(--muted); margin-top: 2px; }
+
+  .del-btn { background: none; border: none; color: #2a2a2a; cursor: pointer; font-size: 1rem; padding: 5px 8px; border-radius: 6px; transition: color 0.2s, background 0.2s; }
+  .del-btn:hover { color: var(--red); background: rgba(255,23,68,0.1); }
+
+  .empty { text-align: center; padding: 44px 20px; color: var(--muted); }
+  .empty-icon { font-size: 2.8rem; margin-bottom: 10px; }
+  .empty p { font-family: 'Barlow Condensed', sans-serif; letter-spacing: 1px; text-transform: uppercase; font-size: 0.85rem; line-height: 1.7; }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; bottom: 22px; right: 22px;
+    background: var(--card2); border: 1px solid var(--border2); border-radius: 10px;
+    padding: 11px 18px; font-family: 'Barlow Condensed', sans-serif; font-size: 0.9rem; letter-spacing: 0.5px;
+    opacity: 0; transform: translateY(8px); transition: all 0.25s; pointer-events: none; z-index: 999;
+  }
+  .toast.show { opacity: 1; transform: none; }
+  .toast.s { border-color: var(--green); color: var(--green); }
+  .toast.e { border-color: var(--red); color: var(--red); }
+
+  @media (max-width: 600px) {
+    .stats { grid-template-columns: repeat(2,1fr); }
+    .stat-val { font-size: 1.1rem; }
+    .srch { max-width: 100%; margin-left: 0; }
+    header h1 { font-size: 1.3rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🎰</div>
+  <div>
+    <h1>TX Scratch Tracker</h1>
+    <p>Texas Lottery · Personal Records</p>
+  </div>
+</header>
+
+<div class="stats">
+  <div class="stat"><div class="stat-val" id="s-total">0</div><div class="stat-lbl">Tickets</div></div>
+  <div class="stat"><div class="stat-val" id="s-spent">$0</div><div class="stat-lbl">Spent</div></div>
+  <div class="stat"><div class="stat-val g" id="s-won">$0</div><div class="stat-lbl">Won</div></div>
+  <div class="stat"><div class="stat-val" id="s-net">$0</div><div class="stat-lbl">Net P/L</div></div>
+</div>
+
+<div class="main">
+
+  <!-- LOG FORM -->
+  <div class="form-card">
+    <div class="form-title">🎟️ Log a Ticket</div>
+
+    <!-- Game selector -->
+    <div id="game-picker">
+      <div class="game-search-wrap">
+        <span class="search-icon">🔍</span>
+        <input class="game-search-input" id="game-search" type="text" placeholder="Search or pick a game…" autocomplete="off"
+          oninput="filterGames(this.value)" onfocus="openDrop()" onblur="closeDrop()" onkeydown="dropKey(event)" />
+        <div class="game-dropdown" id="game-drop"></div>
+      </div>
+    </div>
+
+    <div class="selected-game" id="sel-game-row">
+      <div>
+        <div class="sel-name" id="sel-game-name">—</div>
+        <div class="sel-price" id="sel-game-meta">—</div>
+      </div>
+      <button class="change-btn" onclick="resetGame()">Change</button>
+    </div>
+
+    <!-- Prize chips -->
+    <div class="prize-section" id="prize-section" style="display:none">
+      <div class="prize-label">What did you win? Tap a prize amount:</div>
+      <div class="prize-chips" id="prize-chips"></div>
+    </div>
+
+    <!-- Custom amount -->
+    <div class="custom-row">
+      <input class="custom-input" id="custom-amt" type="number" placeholder="Or type a custom amount (0 = no win)" min="0" step="0.01"
+        oninput="onCustomInput(this.value)" />
+      <span style="color:var(--muted);font-size:0.85rem;font-family:'Barlow Condensed',sans-serif;white-space:nowrap;">$ won</span>
+    </div>
+
+    <!-- Date -->
+    <div class="date-row">
+      <label>Date scratched:</label>
+      <input class="date-input" type="date" id="f-date" />
+    </div>
+
+    <button class="add-btn" id="add-btn" onclick="addTicket()">+ ADD TICKET</button>
+  </div>
+
+  <!-- FILTER ROW -->
+  <div class="filter-row">
+    <button class="f-btn active" onclick="setFilter('all',this)">All</button>
+    <button class="f-btn" onclick="setFilter('win',this)">Wins</button>
+    <button class="f-btn" onclick="setFilter('loss',this)">No Win</button>
+    <input class="srch" type="text" placeholder="🔍 Search…" oninput="setSearch(this.value)" />
+  </div>
+
+  <!-- RECORDS -->
+  <div>
+    <div class="sec-hdr">
+      <div class="sec-title">Your Records</div>
+      <div class="rec-count" id="rec-count"></div>
+    </div>
+    <div class="records" id="records"></div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── GAME DATA (real TX Lottery, June 2026) ──────────────────────────────────
+const TX_GAMES = [
+  { num:"2744", name:"$1,000,000 Ca$h!", close:null, price:20, prizes:[20,100,200,500,1000,5000,1000000] },
+  { num:"2658", name:"$1,000,000 Crossword", close:null, price:20, prizes:[20,100,200,500,1000,5000,20000,1000000] },
+  { num:"2636", name:"$1,000,000 Riches", close:null, price:10, prizes:[10,20,30,50,100,200,500,1000,5000,1000000] },
+  { num:"2609", name:"$100, $200, $500 OR $1,000!", close:null, price:20, prizes:[100,200,500,1000] },
+  { num:"2577", name:"$100,000 Cash", close:null, price:5, prizes:[5,10,20,50,100,200,500,1000,100000] },
+  { num:"2400", name:"$20 Million Supreme", close:null, price:100, prizes:[150,200,300,500,1000,10000,100000,20000000] },
+  { num:"2633", name:"$3 Million Ca$h", close:"07/15/2026", price:30, prizes:[30,50,100,150,200,300,500,1000,10000,3000000] },
+  { num:"2624", name:"$5 Million Royale", close:null, price:50, prizes:[50,100,150,200,500,1000,10000,5000000] },
+  { num:"2627", name:"$5 Million Titanium Black", close:null, price:100, prizes:[150,200,300,500,1000,2500,50000,5000000] },
+  { num:"2637", name:"$50, $100 OR $500!", close:null, price:10, prizes:[50,100,500] },
+  { num:"2646", name:"20X The Money", close:null, price:2, prizes:[2,5,10,20,40,50,100,1000,30000] },
+  { num:"2589", name:"500X", close:null, price:50, prizes:[50,100,200,300,500,1000,5000,25000,1000000] },
+  { num:"2632", name:"777", close:null, price:10, prizes:[10,20,30,40,50,100,200,500,1000,10000,250000] },
+  { num:"2680", name:"9 Symbols", close:null, price:1, prizes:[1,2,5,10,20,50,100,150,300,500] },
+  { num:"2430", name:"Bonus Break the Bank", close:null, price:5, prizes:[5,10,15,20,50,100,500,5000,100000] },
+  { num:"2424", name:"Cash Frenzy", close:null, price:1, prizes:[1,2,3,4,5,10,20,50,500] },
+  { num:"2647", name:"Cash Line Bingo", close:null, price:2, prizes:[2,3,5,6,10,15,20,30,50,100,500,1000,30000] },
+  { num:"1878", name:"Cash On The Spot", close:"07/02/2026", price:1, prizes:[1,2,3,4,5,10,20,50,500] },
+  { num:"2600", name:"Casino Night", close:"06/17/2026", price:10, prizes:[10,15,20,25,30,50,100,200,500,1000,10000,50000,250000] },
+  { num:"2504", name:"Crossword", close:"07/15/2026", price:3, prizes:[3,5,10,15,20,50,100,500,5000,50000] },
+  { num:"2655", name:"Extreme Multiplier", close:null, price:20, prizes:[20,40,60,80,100,200,400,1000,5000,20000,1000000] },
+  { num:"2587", name:"Loteria Supreme", close:null, price:100, prizes:[100,200,300,500,1000,5000,10000,100000,7500000] },
+  { num:"2622", name:"Lucky No. 7", close:null, price:2, prizes:[2,3,6,9,10,18,20,30,60,100,1000,30000] },
+  { num:"2653", name:"Million Dollar Loteria", close:null, price:20, prizes:[20,30,40,50,100,150,200,250,500,1000,5000,20000,1000000] },
+  { num:"2674", name:"Royal Riches", close:null, price:2, prizes:[2,5,10,50,100,1000,30000] },
+  { num:"2581", name:"Super Crossword", close:"07/12/2026", price:5, prizes:[5,10,15,20,25,50,100,200,500,1000,100000] },
+  { num:"2648", name:"Super Loteria", close:null, price:5, prizes:[5,10,15,20,50,100,200,500,5000,100000] },
+  { num:"2628", name:"Texas Loteria", close:null, price:3, prizes:[3,5,8,10,15,18,20,30,33,50,80,250,3000,50000] },
+  { num:"2610", name:"Ultimate Millions", close:null, price:50, prizes:[75,100,150,250,500,2000,25000,1000000] },
+  { num:"2124", name:"Winning 7s", close:null, price:1, prizes:[1,2,3,4,5,6,10,20,50,500] },
+  { num:"2590", name:"X", close:null, price:50, prizes:[75,100,150,200,500,1000,5000,20000,1000000] },
+];
+
+// ── STATE ──────────────────────────────────────────────────────────────────
+let tickets = [];
+let selectedGame = null;
+let selectedPrize = null; // number or "loss"
+let dropFocusIdx = -1;
+let currentFilter = 'all';
+let searchQ = '';
+
+// ── STORAGE ────────────────────────────────────────────────────────────────
+function load() {
+  try { const d = localStorage.getItem('tx-v2'); if (d) tickets = JSON.parse(d); } catch(e) { tickets = []; }
+  document.getElementById('f-date').value = today();
+  renderAll();
+}
+function save() { localStorage.setItem('tx-v2', JSON.stringify(tickets)); }
+function today() { return new Date().toISOString().split('T')[0]; }
+
+// ── GAME PICKER ────────────────────────────────────────────────────────────
+let filteredGames = [...TX_GAMES];
+
+function filterGames(q) {
+  q = (q || '').trim().toLowerCase();
+  filteredGames = q
+    ? TX_GAMES.filter(g => g.name.toLowerCase().includes(q) || g.num.includes(q))
+    : [...TX_GAMES];
+  dropFocusIdx = -1;
+  renderDrop();
+}
+
+function renderDrop() {
+  const drop = document.getElementById('game-drop');
+  if (!filteredGames.length) {
+    drop.innerHTML = '<div class="game-opt" style="color:var(--muted);cursor:default;">No games found</div>';
+    return;
+  }
+  drop.innerHTML = filteredGames.map((g, i) => {
+    const closing = g.close ? ` · Ends ${g.close}` : '';
+    return `<div class="game-opt" data-idx="${i}"
+      onmousedown="pickGame(${i})"
+      onmouseover="hoverOpt(${i})">
+      <span class="game-opt-name">${esc(g.name)}</span>
+      <span class="game-opt-meta">$${g.price}${closing}</span>
+    </div>`;
+  }).join('');
+}
+
+function openDrop() {
+  filterGames(document.getElementById('game-search').value);
+  document.getElementById('game-drop').classList.add('open');
+}
+
+function closeDrop() {
+  setTimeout(() => document.getElementById('game-drop').classList.remove('open'), 150);
+}
+
+function hoverOpt(i) { dropFocusIdx = i; highlightDrop(); }
+
+function highlightDrop() {
+  document.querySelectorAll('.game-opt').forEach((el, i) => {
+    el.classList.toggle('focused', i === dropFocusIdx);
+  });
+}
+
+function dropKey(e) {
+  const drop = document.getElementById('game-drop');
+  if (!drop.classList.contains('open')) return;
+  if (e.key === 'ArrowDown') { dropFocusIdx = Math.min(dropFocusIdx+1, filteredGames.length-1); highlightDrop(); e.preventDefault(); }
+  else if (e.key === 'ArrowUp') { dropFocusIdx = Math.max(dropFocusIdx-1, 0); highlightDrop(); e.preventDefault(); }
+  else if (e.key === 'Enter' && dropFocusIdx >= 0) { pickGame(dropFocusIdx); e.preventDefault(); }
+  else if (e.key === 'Escape') { drop.classList.remove('open'); }
+}
+
+function pickGame(i) {
+  selectedGame = filteredGames[i];
+  selectedPrize = null;
+  document.getElementById('game-search').value = '';
+  document.getElementById('game-drop').classList.remove('open');
+  document.getElementById('game-picker').style.display = 'none';
+  const row = document.getElementById('sel-game-row');
+  row.classList.add('show');
+  document.getElementById('sel-game-name').textContent = selectedGame.name;
+  document.getElementById('sel-game-meta').textContent = `$${selectedGame.price} ticket · Game #${selectedGame.num}`;
+  buildPrizeChips();
+  document.getElementById('custom-amt').value = '';
+}
+
+function resetGame() {
+  selectedGame = null; selectedPrize = null;
+  document.getElementById('sel-game-row').classList.remove('show');
+  document.getElementById('game-picker').style.display = '';
+  document.getElementById('game-search').value = '';
+  document.getElementById('prize-section').style.display = 'none';
+  document.getElementById('prize-chips').innerHTML = '';
+  document.getElementById('custom-amt').value = '';
+  filterGames('');
+}
+
+function buildPrizeChips() {
+  const g = selectedGame;
+  const sec = document.getElementById('prize-section');
+  const chips = document.getElementById('prize-chips');
+  // Loss chip first, then prize amounts
+  let html = `<div class="chip loss-chip" data-val="loss" onclick="selectChip(this,'loss')">❌ No Win</div>`;
+  for (const p of g.prizes) {
+    html += `<div class="chip" data-val="${p}" onclick="selectChip(this,${p})">${fmtPrize(p)}</div>`;
+  }
+  chips.innerHTML = html;
+  sec.style.display = '';
+}
+
+function fmtPrize(n) {
+  if (n >= 1000000) return '$' + (n/1000000) + 'M';
+  if (n >= 1000) return '$' + (n/1000).toFixed(n%1000===0?0:1) + 'K';
+  return '$' + n;
+}
+
+function selectChip(el, val) {
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedPrize = val;
+  if (val === 'loss') {
+    document.getElementById('custom-amt').value = '0';
+  } else {
+    document.getElementById('custom-amt').value = val;
+  }
+}
+
+function onCustomInput(val) {
+  // Clear chip selection if user types manually
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+  selectedPrize = parseFloat(val) || 0;
+  // Re-select matching chip if exists
+  document.querySelectorAll('.chip').forEach(c => {
+    const cv = c.dataset.val;
+    if (cv === 'loss' && (val === '0' || val === '')) return;
+    if (parseFloat(cv) === parseFloat(val)) c.classList.add('selected');
+  });
+}
+
+// ── ADD TICKET ─────────────────────────────────────────────────────────────
+function addTicket() {
+  if (!selectedGame) { showToast('Pick a game first!', 'e'); return; }
+  const customVal = document.getElementById('custom-amt').value;
+  const winAmt = parseFloat(customVal);
+  const isWin = !isNaN(winAmt) && winAmt > 0;
+  const date = document.getElementById('f-date').value;
+  if (!date) { showToast('Pick a date!', 'e'); return; }
+
+  const t = {
+    id: Date.now(),
+    gameNum: selectedGame.num,
+    gameName: selectedGame.name,
+    price: selectedGame.price,
+    winAmt: isNaN(winAmt) ? 0 : winAmt,
+    outcome: isWin ? 'win' : 'loss',
+    date
+  };
+  tickets.unshift(t);
+  save(); renderAll();
+  showToast(isWin ? `🏆 +${fmt(winAmt)} recorded!` : '❌ Loss logged.', isWin ? 's' : '');
+  resetGame();
+  document.getElementById('custom-amt').value = '';
+}
+
+// ── FILTER / SEARCH ────────────────────────────────────────────────────────
+function setFilter(v, btn) {
+  currentFilter = v;
+  document.querySelectorAll('.f-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderList();
+}
+function setSearch(v) { searchQ = v.toLowerCase(); renderList(); }
+
+// ── RENDER ─────────────────────────────────────────────────────────────────
+function renderAll() { renderStats(); renderList(); }
+
+function renderStats() {
+  const spent = tickets.reduce((s,t) => s+t.price, 0);
+  const won   = tickets.reduce((s,t) => s+t.winAmt, 0);
+  const net   = won - spent;
+  document.getElementById('s-total').textContent = tickets.length;
+  document.getElementById('s-spent').textContent = fmt(spent);
+  document.getElementById('s-won').textContent   = fmt(won);
+  const el = document.getElementById('s-net');
+  el.textContent = (net>=0?'+':'') + fmt(net);
+  el.className = 'stat-val ' + (net>=0?'g':'r');
+}
+
+function renderList() {
+  let list = tickets;
+  if (currentFilter==='win')  list = list.filter(t => t.outcome==='win');
+  if (currentFilter==='loss') list = list.filter(t => t.outcome==='loss');
+  if (searchQ) list = list.filter(t => t.gameName.toLowerCase().includes(searchQ) || t.gameNum.includes(searchQ));
+
+  document.getElementById('rec-count').textContent = list.length + ' record' + (list.length!==1?'s':'');
+  const el = document.getElementById('records');
+
+  if (!list.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">🎟️</div><p>${tickets.length===0?'No tickets yet.<br>Log your first scratch-off above!':'No records match your filter.'}</p></div>`;
+    return;
+  }
+  el.innerHTML = list.map(t => {
+    const isWin = t.outcome==='win';
+    const dateStr = t.date ? new Date(t.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
+    return `<div class="rec-card">
+      <div class="rec-bar ${t.outcome}"></div>
+      <div class="rec-info">
+        <div class="rec-name">${esc(t.gameName)}</div>
+        <div class="rec-meta">
+          ${dateStr?`<span>📅 ${dateStr}</span>`:''}
+          <span>Game #${t.gameNum}</span>
+          <span class="badge ${t.outcome}">${isWin?'WIN':'NO WIN'}</span>
+        </div>
+      </div>
+      <div class="rec-amt">
+        <div class="amt-val ${t.outcome}">${isWin?'+'+fmt(t.winAmt):'—'}</div>
+        <div class="amt-cost">Cost: ${fmt(t.price)}</div>
+      </div>
+      <button class="del-btn" onclick="del(${t.id})" title="Delete">🗑</button>
+    </div>`;
+  }).join('');
+}
+
+function del(id) {
+  tickets = tickets.filter(t => t.id!==id);
+  save(); renderAll();
+  showToast('Record deleted.','');
+}
+
+// ── UTILS ──────────────────────────────────────────────────────────────────
+function fmt(n) { return '$'+Number(n).toFixed(2); }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast show '+(type||'');
+  setTimeout(()=>t.className='toast',2800);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+filteredGames = [...TX_GAMES];
+renderDrop();
+load();
+</script>
+</body>
+</html>

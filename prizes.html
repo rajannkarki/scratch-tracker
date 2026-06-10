@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prize Ranges — Scratch Tracker</title>
+  <meta name="description" content="Browse all scratch-off lottery games and their prize tiers. See which games you've played and compare prize ranges.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎰</text></svg>">
+  <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Loading Overlay -->
+  <div id="loading-overlay" class="loading-overlay"><div class="spinner"></div></div>
+
+  <nav class="navbar">
+    <div class="nav-brand">
+      <span class="nav-logo">🎰</span>
+      <span class="nav-title">Scratch Tracker</span>
+    </div>
+    <div class="nav-links">
+      <a href="index.html" class="nav-link" id="nav-tracker">Tracker</a>
+      <a href="prizes.html" class="nav-link active" id="nav-prizes">Prize Ranges</a>
+    </div>
+    <div class="nav-user">
+      <span class="user-state-badge" id="user-state-badge">TX</span>
+      <span class="user-display" id="user-display">User</span>
+      <button class="logout-btn" id="logout-btn" title="Sign Out">⏻</button>
+    </div>
+  </nav>
+
+  <div class="main">
+    <div class="prizes-header">
+      <h1 class="prizes-title">🏆 Prize Ranges</h1>
+      <p class="prizes-subtitle">Browse all scratch-off games and their prize tiers</p>
+    </div>
+
+    <div class="price-filter" id="price-filter"></div>
+
+    <input class="prizes-search" id="prizes-search" type="text" placeholder="🔍 Search games...">
+
+    <div class="no-games-msg" id="no-games-msg" style="display:none">
+      <p>No games available for your state yet.<br>Games data is currently available for Texas only.</p>
+    </div>
+
+    <div class="game-catalog" id="game-catalog"></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Firebase SDK (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  <!-- App Scripts -->
+  <script src="js/firebase-config.js"></script>
+  <script src="js/games.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/tracker.js"></script>
+  <script src="js/prizes-page.js"></script>
+</body>
+</html>

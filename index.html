@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scratch Tracker — Lottery Ticket Tracker</title>
+  <meta name="description" content="Track your scratch-off lottery tickets, record winning numbers, and analyze your spending across all US states.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎰</text></svg>">
+  <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Loading Overlay -->
+  <div id="loading-overlay" class="loading-overlay"><div class="spinner"></div></div>
+
+  <!-- Setup Screen (Firebase not configured) -->
+  <div id="setup-screen" class="screen" style="display:none">
+    <div class="setup-card">
+      <div class="logo-large">🎰</div>
+      <h1>Scratch Tracker</h1>
+      <p>Firebase is not configured yet. Follow the README instructions to set up your Firebase project.</p>
+      <div class="setup-steps">
+        <p>1. Create a Firebase project at console.firebase.google.com</p>
+        <p>2. Enable Email/Password Authentication</p>
+        <p>3. Create a Firestore Database</p>
+        <p>4. Copy your config to js/firebase-config.js</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Auth Screen -->
+  <div id="auth-screen" class="screen" style="display:none">
+    <div class="auth-card">
+      <div class="auth-logo">🎰</div>
+      <h1 class="auth-title" id="auth-title">Sign In</h1>
+      <p class="auth-subtitle">Track your scratch-off wins</p>
+      <div class="auth-error" id="auth-error" style="display:none"></div>
+      <form id="auth-form">
+        <div id="signup-fields" style="display:none">
+          <div class="form-group">
+            <label for="auth-name">Display Name</label>
+            <input type="text" id="auth-name" placeholder="Your name" autocomplete="name">
+          </div>
+          <div class="form-group">
+            <label for="auth-state">Your State</label>
+            <select id="auth-state"></select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="auth-email">Email</label>
+          <input type="email" id="auth-email" placeholder="you@example.com" autocomplete="email" required>
+        </div>
+        <div class="form-group">
+          <label for="auth-password">Password</label>
+          <input type="password" id="auth-password" placeholder="••••••••" autocomplete="current-password" required>
+        </div>
+        <div id="confirm-pw-row" style="display:none">
+          <div class="form-group">
+            <label for="auth-confirm-password">Confirm Password</label>
+            <input type="password" id="auth-confirm-password" placeholder="••••••••" autocomplete="new-password">
+          </div>
+        </div>
+        <button type="submit" class="auth-submit" id="auth-submit">Sign In</button>
+      </form>
+      <p class="auth-toggle">Don't have an account? <a href="#" id="auth-toggle">Sign Up</a></p>
+    </div>
+  </div>
+
+  <!-- App Screen -->
+  <div id="app-screen" class="screen" style="display:none">
+    <nav class="navbar">
+      <div class="nav-brand">
+        <span class="nav-logo">🎰</span>
+        <span class="nav-title">Scratch Tracker</span>
+      </div>
+      <div class="nav-links">
+        <a href="index.html" class="nav-link active" id="nav-tracker">Tracker</a>
+        <a href="prizes.html" class="nav-link" id="nav-prizes">Prize Ranges</a>
+      </div>
+      <div class="nav-user">
+        <span class="user-state-badge" id="user-state-badge">TX</span>
+        <span class="user-display" id="user-display">User</span>
+        <button class="logout-btn" id="logout-btn" title="Sign Out">⏻</button>
+      </div>
+    </nav>
+
+    <div class="stats">
+      <div class="stat"><div class="stat-val" id="s-total">0</div><div class="stat-lbl">Tickets</div></div>
+      <div class="stat"><div class="stat-val" id="s-spent">$0</div><div class="stat-lbl">Spent</div></div>
+      <div class="stat"><div class="stat-val g" id="s-won">$0</div><div class="stat-lbl">Won</div></div>
+      <div class="stat"><div class="stat-val" id="s-net">$0</div><div class="stat-lbl">Net P/L</div></div>
+    </div>
+
+    <div class="main">
+      <!-- Log Form -->
+      <div class="form-card">
+        <div class="form-title">🎟️ Log a Ticket</div>
+
+        <div id="game-picker">
+          <div class="game-search-wrap">
+            <span class="search-icon">🔍</span>
+            <input class="game-search-input" id="game-search" type="text" placeholder="Search or pick a game…" autocomplete="off">
+            <div class="game-dropdown" id="game-drop"></div>
+          </div>
+        </div>
+
+        <div class="selected-game" id="sel-game-row">
+          <div>
+            <div class="sel-name" id="sel-game-name">—</div>
+            <div class="sel-price" id="sel-game-meta">—</div>
+          </div>
+          <button class="change-btn" id="change-game-btn">Change</button>
+        </div>
+
+        <div class="prize-section" id="prize-section" style="display:none">
+          <div class="prize-label">What did you win? Tap a prize amount:</div>
+          <div class="prize-chips" id="prize-chips"></div>
+        </div>
+
+        <div class="custom-row">
+          <input class="custom-input" id="custom-amt" type="number" placeholder="Or type a custom amount (0 = no win)" min="0" step="0.01">
+          <span class="custom-suffix">$ won</span>
+        </div>
+
+        <div class="ticket-num-section" id="ticket-num-section" style="display:none">
+          <label class="ticket-num-label">🏆 Winning Ticket #</label>
+          <input class="ticket-num-input" id="ticket-num" type="text" placeholder="e.g. 18">
+        </div>
+
+        <div class="date-row">
+          <label>Date scratched:</label>
+          <input class="date-input" type="date" id="f-date">
+        </div>
+
+        <button class="add-btn" id="add-btn">+ ADD TICKET</button>
+      </div>
+
+      <!-- Filter Row -->
+      <div class="filter-row" id="filter-row">
+        <button class="f-btn active" data-filter="all">All</button>
+        <button class="f-btn" data-filter="win">Wins</button>
+        <button class="f-btn" data-filter="loss">No Win</button>
+        <input class="srch" id="search-input" type="text" placeholder="🔍 Search…">
+      </div>
+
+      <!-- Records -->
+      <div>
+        <div class="sec-hdr">
+          <div class="sec-title">Your Records</div>
+          <div class="rec-count" id="rec-count"></div>
+        </div>
+        <div class="records" id="records"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Firebase SDK (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  <!-- App Scripts (order matters) -->
+  <script src="js/firebase-config.js"></script>
+  <script src="js/games.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/tracker.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
