@@ -9,6 +9,12 @@
   let _chartInstance = null;
   let _allUsers = [];
   let _allTickets = [];
+  let _gameFilter = null; // selected gameNum — community pattern is per-game ONLY
+  let _detailUid = null;  // user currently open in the drilldown modal
+
+  function approvedWins() {
+    return _allTickets.filter(t => (t.status === 'approved' || !t.status) && t.outcome === 'win');
+  }
 
   document.addEventListener('DOMContentLoaded', () => {
     /* 1. Check Firebase Config */
@@ -122,8 +128,44 @@
     renderSystemStats(_allUsers, approvedTickets);
     renderUserTable(_allUsers);
     renderModerationTable(pendingTickets);
-    renderCommunityChart(approvedTickets);
-    renderCommunityTable(approvedTickets);
+    buildGameBoxes();
+    renderCommunityChart();
+    renderCommunityTable();
+  }
+
+  /* ── Build per-game selector boxes (community wins) ──────────── */
+  function buildGameBoxes() {
+    const container = document.getElementById('anal-game-boxes');
+    if (!container) return;
+
+    const wins = approvedWins();
+    const byGame = {};
+    for (const t of wins) {
+      const num = t.gameNum;
+      if (!byGame[num]) byGame[num] = { num, name: t.gameName, price: t.price, wins: 0 };
+      byGame[num].wins += 1;
+    }
+    const games = Object.values(byGame).sort((a, b) => b.wins - a.wins);
+
+    if (games.length === 0) {
+      container.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;">No community winning tickets to analyze yet.</p>';
+      _gameFilter = null;
+      return;
+    }
+
+    if (!_gameFilter || !byGame[_gameFilter]) {
+      _gameFilter = games[0].num;
+    }
+
+    container.innerHTML = games.map(g => `
+      <div class="game-box${g.num === _gameFilter ? ' active' : ''}" data-game="${esc(g.num)}">
+        <div class="game-box-name" title="${esc(g.name)}">${esc(g.name)}</div>
+        <div class="game-box-meta">
+          <span>$${g.price} ticket</span>
+          <span class="game-box-count">${g.wins} win${g.wins === 1 ? '' : 's'}</span>
+        </div>
+      </div>
+    `).join('');
   }
 
   function renderModerationTable(pendingTickets) {
@@ -224,55 +266,53 @@
       const isViewer = u.role === 'viewer';
       const isAdmin = u.role === 'admin';
 
-      // Don't show toggle for admin users
-      const actionBtn = isAdmin
+      // Don't show role toggle for admin users
+      const roleBtn = isAdmin
         ? '<span style="color:var(--gold);font-size:0.8rem;font-weight:600;">Admin</span>'
         : `<button class="toggle-btn role-toggle-btn ${isViewer ? 'active' : ''}" data-uid="${u.uid}" data-role="${u.role || ''}" style="font-size:0.75rem;padding:4px 12px;">${isViewer ? 'Revoke Viewer' : 'Grant Viewer'}</button>`;
+
+      const ticketCount = _allTickets.filter(t => t.userId === u.uid).length;
+      const viewBtn = `<button class="toggle-btn view-user-btn" data-uid="${u.uid}" style="font-size:0.75rem;padding:4px 12px;">👁 View Tickets (${ticketCount})</button>`;
 
       return `<tr>
         <td style="font-size:0.85rem;">${esc(u.email || '—')}</td>
         <td style="font-weight:600;">${esc(u.displayName || '—')}</td>
         <td><span class="user-state-badge" style="cursor:default;">${esc(u.state || '—')}</span></td>
         <td style="font-size:0.85rem;text-transform:capitalize;">${esc(role)}</td>
-        <td>${actionBtn}</td>
+        <td><div style="display:flex;gap:6px;flex-wrap:wrap;">${roleBtn}${viewBtn}</div></td>
       </tr>`;
     }).join('');
   }
 
-  /* ── Render Community Chart (Line) ───────────────────────── */
-  function renderCommunityChart(tickets) {
+  /* ── Render Community Chart (per-game ticket # distribution) ── */
+  function renderCommunityChart() {
     const ctx = document.getElementById('community-chart');
     if (!ctx) return;
 
-    // Aggregate by date
+    // Only the selected game's winning tickets — the pattern is per-game.
+    const wins = approvedWins().filter(t => _gameFilter && t.gameNum === _gameFilter);
+
+    // Update chart label with the game name
+    const labelEl = document.getElementById('chart-game-label');
+    if (labelEl) labelEl.textContent = wins[0] ? '· ' + wins[0].gameName : '';
+
+    // Aggregate by ticket number
     const dataMap = {};
-    for (const t of tickets) {
-      const dateKey = t.date || 'Unknown';
-      if (!dataMap[dateKey]) {
-        dataMap[dateKey] = { freq: 0, amt: 0 };
-      }
-      dataMap[dateKey].freq += 1;
-      dataMap[dateKey].amt += parseFloat(t.winAmt) || 0;
+    for (const t of wins) {
+      const num = (t.ticketNumber || '').trim();
+      if (!num) continue;
+      if (!dataMap[num]) dataMap[num] = { freq: 0, amt: 0 };
+      dataMap[num].freq += 1;
+      dataMap[num].amt += parseFloat(t.winAmt) || 0;
     }
 
-    // Sort by date
     const sortedKeys = Object.keys(dataMap).sort((a, b) => {
-      if (a === 'Unknown') return -1;
-      if (b === 'Unknown') return 1;
-      return a.localeCompare(b);
+      const na = parseInt(a, 10), nb = parseInt(b, 10);
+      if (isNaN(na) || isNaN(nb)) return a.localeCompare(b);
+      return na - nb;
     });
 
-    const labels = sortedKeys.map(k => {
-      if (k === 'Unknown') return k;
-      try {
-        return new Date(k + 'T12:00:00').toLocaleDateString('en-US', {
-          month: 'short', day: 'numeric'
-        });
-      } catch (_) {
-        return k;
-      }
-    });
-
+    const labels = sortedKeys.map(k => '#' + k);
     const dataValues = sortedKeys.map(k => _chartType === 'freq' ? dataMap[k].freq : dataMap[k].amt);
 
     if (_chartInstance) {
@@ -286,45 +326,33 @@
       canvasCtx.fillStyle = '#777';
       canvasCtx.font = '16px Inter';
       canvasCtx.textAlign = 'center';
-      canvasCtx.fillText('No ticket data available yet.', canvas.width / 2, canvas.height / 2);
+      canvasCtx.fillText('No community ticket numbers for this game yet.', canvas.width / 2, canvas.height / 2);
       return;
     }
 
-    const valueLabel = _chartType === 'freq' ? 'Tickets Logged' : 'Total Amount Won ($)';
-
-    // Create gradient fill
-    const chartCtx = ctx.getContext('2d');
-    const gradient = chartCtx.createLinearGradient(0, 0, 0, 400);
-    gradient.addColorStop(0, 'rgba(6, 214, 160, 0.3)');
-    gradient.addColorStop(1, 'transparent');
+    const valueLabel = _chartType === 'freq' ? 'Wins Frequency' : 'Total Amount Won ($)';
+    const maxVal = Math.max(...dataValues);
+    const barColors = dataValues.map(v => v === maxVal && maxVal > 0 ? '#FFD700' : 'rgba(255,215,0,0.35)');
 
     _chartInstance = new Chart(ctx, {
-      type: 'line',
+      type: 'bar',
       data: {
         labels: labels,
         datasets: [{
           label: valueLabel,
           data: dataValues,
-          borderColor: '#06D6A0',
-          backgroundColor: gradient,
-          borderWidth: 2.5,
-          tension: 0.4,
-          fill: true,
-          pointBackgroundColor: '#06D6A0',
-          pointBorderColor: '#0D1117',
-          pointBorderWidth: 2,
-          pointRadius: 4,
-          pointHoverRadius: 6,
-          pointHoverBackgroundColor: '#FFD700',
+          backgroundColor: barColors,
+          borderColor: '#FFD700',
+          borderWidth: 1,
+          borderRadius: 6,
+          maxBarThickness: 48,
         }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: {
-            display: false
-          },
+          legend: { display: false },
           tooltip: {
             backgroundColor: '#181818',
             titleColor: '#06D6A0',
@@ -337,26 +365,18 @@
             callbacks: {
               label: function (context) {
                 const val = context.parsed.y;
-                return _chartType === 'freq' ? `${val} tickets` : `$${val.toFixed(2)}`;
+                return _chartType === 'freq' ? `${val} wins` : `$${val.toFixed(2)}`;
               }
             }
           }
         },
         scales: {
           x: {
-            grid: {
-              color: '#222'
-            },
-            ticks: {
-              color: '#777',
-              font: { family: 'Inter', size: 11, weight: '500' },
-              maxRotation: 45
-            }
+            grid: { color: '#222' },
+            ticks: { color: '#777', font: { family: 'Inter', size: 11, weight: '500' } }
           },
           y: {
-            grid: {
-              color: '#222'
-            },
+            grid: { color: '#222' },
             ticks: {
               color: '#777',
               font: { family: 'Inter', size: 11 },
@@ -370,15 +390,15 @@
     });
   }
 
-  /* ── Render Community Wins Table ──────────────────────────── */
-  function renderCommunityTable(tickets) {
+  /* ── Render Community Wins Table (selected game) ──────────── */
+  function renderCommunityTable() {
     const tbody = document.getElementById('community-wins-body');
     if (!tbody) return;
 
-    const wins = tickets.filter(t => t.outcome === 'win');
+    const wins = approvedWins().filter(t => _gameFilter && t.gameNum === _gameFilter);
 
     if (!wins.length) {
-      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px;">No winning tickets across all users.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px;">No winning tickets for this game.</td></tr>';
       return;
     }
 
@@ -414,26 +434,63 @@
       _chartType = 'freq';
       document.getElementById('toggle-freq').classList.add('active');
       document.getElementById('toggle-amt').classList.remove('active');
-      const approved = _allTickets.filter(t => t.status === 'approved' || !t.status);
-      renderCommunityChart(approved);
+      renderCommunityChart();
     });
 
     document.getElementById('toggle-amt').addEventListener('click', () => {
       _chartType = 'amt';
       document.getElementById('toggle-amt').classList.add('active');
       document.getElementById('toggle-freq').classList.remove('active');
-      const approved = _allTickets.filter(t => t.status === 'approved' || !t.status);
-      renderCommunityChart(approved);
+      renderCommunityChart();
     });
 
-    /* Role toggle buttons — delegated */
+    /* Game box selection (community activity) */
+    const gameBoxes = document.getElementById('anal-game-boxes');
+    if (gameBoxes) {
+      gameBoxes.addEventListener('click', (e) => {
+        const box = e.target.closest('.game-box');
+        if (!box) return;
+        _gameFilter = box.dataset.game;
+        gameBoxes.querySelectorAll('.game-box').forEach(b => b.classList.remove('active'));
+        box.classList.add('active');
+        renderCommunityChart();
+        renderCommunityTable();
+      });
+    }
+
+    /* User table buttons — delegated (role toggle + view tickets) */
     document.getElementById('users-table-body').addEventListener('click', (e) => {
+      const viewBtn = e.target.closest('.view-user-btn');
+      if (viewBtn) {
+        openUserDetail(viewBtn.dataset.uid);
+        return;
+      }
       const btn = e.target.closest('.role-toggle-btn');
       if (!btn) return;
-      const uid = btn.dataset.uid;
-      const currentRole = btn.dataset.role;
-      toggleRole(uid, currentRole);
+      toggleRole(btn.dataset.uid, btn.dataset.role);
     });
+
+    /* User detail modal close */
+    const udClose = document.getElementById('user-detail-close');
+    if (udClose) udClose.addEventListener('click', closeUserDetail);
+    window.addEventListener('click', (e) => {
+      const modal = document.getElementById('user-detail-modal');
+      if (e.target === modal) closeUserDetail();
+    });
+
+    /* Delete ticket — delegated inside user detail modal */
+    const udBody = document.getElementById('user-detail-body');
+    if (udBody) {
+      udBody.addEventListener('click', (e) => {
+        const delBtn = e.target.closest('.del-ticket-btn');
+        if (!delBtn) return;
+        const uid = delBtn.dataset.uid;
+        const tid = delBtn.dataset.tid;
+        if (confirm('Permanently delete this logged ticket? This cannot be undone.')) {
+          deleteTicket(uid, tid);
+        }
+      });
+    }
 
     /* Ticket moderation — delegated */
     const modBody = document.getElementById('moderation-table-body');
@@ -527,6 +584,72 @@
   function closeProfileModal() {
     const modal = document.getElementById('profile-modal');
     if (modal) modal.style.display = 'none';
+  }
+
+  /* ── User Detail Drilldown (admin) ───────────────────────── */
+  function openUserDetail(uid) {
+    _detailUid = uid;
+    const user = _allUsers.find(u => u.uid === uid);
+    const title = document.getElementById('user-detail-title');
+    const sub = document.getElementById('user-detail-sub');
+    if (title) title.textContent = '👤 ' + (user ? (user.displayName || user.email || 'User') : 'User');
+    if (sub) sub.textContent = user ? `${user.email || ''} · ${user.state || '—'}` : '';
+    renderUserDetailBody();
+    document.getElementById('user-detail-modal').style.display = 'flex';
+  }
+
+  function closeUserDetail() {
+    _detailUid = null;
+    const modal = document.getElementById('user-detail-modal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  function renderUserDetailBody() {
+    const tbody = document.getElementById('user-detail-body');
+    if (!tbody) return;
+
+    const tickets = _allTickets
+      .filter(t => t.userId === _detailUid)
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+    if (!tickets.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px;">This user has not logged any tickets.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = tickets.map(t => {
+      const outcome = t.outcome === 'win'
+        ? `<span class="status-badge approved">+${fmtPrize(t.winAmt)}</span>`
+        : `<span style="color:var(--muted);">Loss</span>`;
+      const dateStr = t.date
+        ? new Date(t.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })
+        : '—';
+      const status = t.status || 'approved';
+      return `<tr>
+        <td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(t.gameName)}">${esc(t.gameName)} <span style="color:var(--muted);">(${esc(t.gameNum)})</span></td>
+        <td><span class="ticket-badge">#${esc(t.ticketNumber || '—')}</span></td>
+        <td>${outcome}</td>
+        <td style="color:var(--muted);font-size:0.8rem;">${dateStr}</td>
+        <td style="text-transform:capitalize;font-size:0.8rem;color:var(--muted);">${esc(status)}</td>
+        <td><button class="del-ticket-btn" data-uid="${esc(t.userId)}" data-tid="${esc(t.id)}">Delete</button></td>
+      </tr>`;
+    }).join('');
+  }
+
+  async function deleteTicket(userId, ticketId) {
+    try {
+      await db.collection('users').doc(userId).collection('tickets').doc(ticketId).delete();
+
+      // Remove from local cache
+      _allTickets = _allTickets.filter(t => !(t.id === ticketId && t.userId === userId));
+
+      renderUserDetailBody();   // refresh the open modal
+      renderAllAdminUI();       // refresh stats, charts, tables, user counts
+      showToast('Ticket deleted.', 's');
+    } catch (e) {
+      console.error('Delete ticket failed:', e);
+      showToast('Failed to delete ticket.', 'e');
+    }
   }
 
   /* ── Helpers ─────────────────────────────────────────────── */

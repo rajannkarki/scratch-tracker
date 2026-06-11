@@ -7,7 +7,7 @@
   <meta name="description" content="The Pattern — Browse scratch-off lottery winning numbers, frequencies, payouts, and interactive win probability charts.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none'%3E%3Ccircle cx='26' cy='26' r='18' stroke='%23FFD700' stroke-width='3' fill='none'/%3E%3Cline x1='39' y1='39' x2='56' y2='56' stroke='%23FFD700' stroke-width='4' stroke-linecap='round'/%3E%3Ctext x='26' y='31' text-anchor='middle' font-family='Outfit' font-weight='800' font-size='16' fill='%2300FF88'%3E%23%3C/text%3E%3C/svg%3E">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=6">
+  <link rel="stylesheet" href="css/style.css?v=7">
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -79,14 +79,13 @@
       </div>
     </div>
 
-    <!-- Filters Panel -->
-    <div class="analytics-filters-card">
-      <div class="form-group anal-game-wrap">
-        <label for="anal-game-filter">Filter by Game</label>
-        <select id="anal-game-filter" class="anal-select"></select>
-      </div>
-      <div class="anal-chips-wrap">
-        <label>Filter by Price</label>
+    <!-- Game Selector — pick ONE lottery game; the pattern is per-game only -->
+    <div class="form-card game-select-card" id="game-select-card" style="margin-bottom:20px;">
+      <div class="form-title" style="display:flex;align-items:center;gap:8px;">🎟️ Select a Lottery Game</div>
+      <p style="color:var(--muted);font-size:0.82rem;margin:-4px 0 12px;">Ticket-number patterns only hold within the same game. Pick one game to see its numbers.</p>
+      <div class="game-box-grid" id="anal-game-boxes"></div>
+      <div class="anal-chips-wrap" style="margin-top:16px;">
+        <label>Filter by Price (optional)</label>
         <div class="price-filter" id="price-filter"></div>
       </div>
     </div>
@@ -109,7 +108,7 @@
       <!-- Left Column: Chart -->
       <div class="chart-section form-card">
         <div class="chart-hdr">
-          <div class="form-title" style="margin-bottom: 0;">📈 Ticket Number Distribution</div>
+          <div class="form-title" style="margin-bottom: 0;">📈 Ticket # Distribution <span id="chart-game-label" style="color:var(--muted);font-weight:500;font-size:0.8rem;"></span></div>
           <div class="chart-toggles">
             <button class="toggle-btn active" id="toggle-freq" data-type="freq">Frequency</button>
             <button class="toggle-btn" id="toggle-amt" data-type="amt">Amount Won</button>
@@ -171,14 +170,4 @@
 
   <!-- Firebase SDK (compat) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-
-  <!-- App Scripts -->
-  <script src="js/firebase-config.js?v=6"></script>
-  <script src="js/games.js?v=6"></script>
-  <script src="js/auth.js?v=6"></script>
-  <script src="js/tracker.js?v=6"></script>
-  <script src="js/prizes-page.js?v=6"></script>
-</body>
-</html>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebas

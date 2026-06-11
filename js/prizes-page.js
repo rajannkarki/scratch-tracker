@@ -6,7 +6,7 @@
   'use strict';
 
   let _priceFilter = 'all';
-  let _gameFilter = 'all';
+  let _gameFilter = null; // selected gameNum — the pattern is per-game ONLY
   let _chartType = 'freq'; // 'freq' | 'amt'
   let _chartInstance = null;
   let _personalTickets = [];
@@ -77,8 +77,7 @@
     const wins = tickets.filter(t => t.outcome === 'win');
     const noTicketsEl = document.getElementById('no-tickets-msg');
     const gridEl = document.getElementById('analytics-grid');
-    const priceEl = document.getElementById('price-filter');
-    const gameSelectEl = document.getElementById('anal-game-filter');
+    const gameCardEl = document.getElementById('game-select-card');
 
     if (wins.length === 0) {
       if (noTicketsEl) {
@@ -90,24 +89,23 @@
         if (goBtn) goBtn.style.display = _currentScope === 'personal' ? 'inline-block' : 'none';
       }
       if (gridEl) gridEl.style.display = 'none';
-      if (priceEl) priceEl.style.display = 'none';
-      if (gameSelectEl) gameSelectEl.parentElement.style.display = 'none';
+      if (gameCardEl) gameCardEl.style.display = 'none';
     } else {
       if (noTicketsEl) noTicketsEl.style.display = 'none';
       if (gridEl) gridEl.style.display = '';
-      if (priceEl) priceEl.style.display = '';
-      if (gameSelectEl) gameSelectEl.parentElement.style.display = '';
+      if (gameCardEl) gameCardEl.style.display = '';
     }
 
+    buildGameBoxes(stateCode || 'TX');
     buildPriceFilter();
-    buildGameFilter(stateCode || 'TX');
     updateDashboard();
     buildHotNumbers(tickets);
   }
 
   /* ── Build filters ───────────────────────────────────────── */
   function buildPriceFilter() {
-    const tickets = getActiveTickets();
+    let tickets = getActiveTickets();
+    if (_gameFilter) tickets = tickets.filter(t => t.gameNum === _gameFilter);
     const prices = [...new Set(tickets.map(g => g.price))].sort((a, b) => a - b);
     const container = document.getElementById('price-filter');
     if (!container) return;
@@ -120,37 +118,43 @@
     _priceFilter = 'all';
   }
 
-  function buildGameFilter(stateCode) {
-    const select = document.getElementById('anal-game-filter');
-    if (!select) return;
-
-    const stateGames = getGamesForState(stateCode);
-    let html = '<option value="all">All Games</option>';
+  function buildGameBoxes() {
+    const container = document.getElementById('anal-game-boxes');
+    if (!container) return;
 
     const tickets = getActiveTickets();
-    const playedGameNums = [...new Set(tickets.map(t => t.gameNum))];
-    const playedGamesList = [];
+    const wins = tickets.filter(t => t.outcome === 'win');
 
-    for (const num of playedGameNums) {
-      const g = stateGames.find(sg => sg.num === num);
-      if (g) {
-        playedGamesList.push(g);
-      } else {
-        const ticket = tickets.find(t => t.gameNum === num);
-        if (ticket) {
-          playedGamesList.push({ num: ticket.gameNum, name: ticket.gameName, price: ticket.price });
-        }
-      }
+    // Build one box per game that has at least one winning ticket logged.
+    const byGame = {};
+    for (const t of wins) {
+      const num = t.gameNum;
+      if (!byGame[num]) byGame[num] = { num, name: t.gameName, price: t.price, wins: 0 };
+      byGame[num].wins += 1;
     }
 
-    // Sort by name
-    playedGamesList.sort((a, b) => a.name.localeCompare(b.name));
+    const games = Object.values(byGame).sort((a, b) => b.wins - a.wins);
 
-    for (const g of playedGamesList) {
-      html += `<option value="${g.num}">${esc(g.name)} ($${g.price})</option>`;
+    if (games.length === 0) {
+      container.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;">No winning tickets to analyze yet.</p>';
+      _gameFilter = null;
+      return;
     }
-    select.innerHTML = html;
-    _gameFilter = 'all';
+
+    // Keep current selection if still valid, otherwise default to the most-played game.
+    if (!_gameFilter || !byGame[_gameFilter]) {
+      _gameFilter = games[0].num;
+    }
+
+    container.innerHTML = games.map(g => `
+      <div class="game-box${g.num === _gameFilter ? ' active' : ''}" data-game="${esc(g.num)}">
+        <div class="game-box-name" title="${esc(g.name)}">${esc(g.name)}</div>
+        <div class="game-box-meta">
+          <span>$${g.price} ticket</span>
+          <span class="game-box-count">${g.wins} win${g.wins === 1 ? '' : 's'}</span>
+        </div>
+      </div>
+    `).join('');
   }
 
   /* ── Update Dashboard Metrics & Visuals ──────────────────── */
@@ -158,14 +162,23 @@
     const tickets = getActiveTickets();
     let filteredWins = tickets.filter(t => t.outcome === 'win');
 
-    /* Filter by Price */
+    /* Filter by Game — a single game is ALWAYS selected; the pattern is per-game */
+    if (_gameFilter) {
+      filteredWins = filteredWins.filter(t => t.gameNum === _gameFilter);
+    } else {
+      filteredWins = [];
+    }
+
+    /* Filter by Price (optional, within the selected game) */
     if (_priceFilter !== 'all') {
       filteredWins = filteredWins.filter(t => t.price === _priceFilter);
     }
 
-    /* Filter by Game */
-    if (_gameFilter !== 'all') {
-      filteredWins = filteredWins.filter(t => t.gameNum === _gameFilter);
+    /* Update chart label with the selected game name */
+    const labelEl = document.getElementById('chart-game-label');
+    if (labelEl) {
+      const sel = filteredWins[0] || tickets.find(t => t.gameNum === _gameFilter);
+      labelEl.textContent = sel ? '· ' + sel.gameName : '';
     }
 
     /* 1. Calculate Metrics */
@@ -208,68 +221,94 @@
   }
 
   /* ── Update Recommendations ──────────────────────────────── */
-  function updateRecommendations(wins, gameFilter) {
+  function updateRecommendations(wins, gameNum) {
     const recCard = document.getElementById('smart-recommendations-card');
     const recContent = document.getElementById('recommendations-content');
     if (!recCard || !recContent) return;
 
-    if (wins.length === 0) {
+    // Only meaningful for a single selected game.
+    if (!gameNum || wins.length === 0) {
       recCard.style.display = 'none';
       return;
     }
 
+    const gameName = wins[0] ? wins[0].gameName : 'this game';
+
+    /* Build per-ticket-number stats: which prize tier each number tends to hit. */
     const stats = {};
-    let totalWinsWithNum = 0;
-    
+    let totalWins = 0;
     for (const t of wins) {
       const num = (t.ticketNumber || '').trim();
       if (!num) continue;
-      if (!stats[num]) {
-        stats[num] = { freq: 0, amt: 0 };
-      }
+      const amt = parseFloat(t.winAmt) || 0;
+      if (!stats[num]) stats[num] = { freq: 0, totalAmt: 0, prizes: {} };
       stats[num].freq += 1;
-      stats[num].offsetPrice = t.price || 0;
-      stats[num].amt += parseFloat(t.winAmt) || 0;
-      totalWinsWithNum += 1;
+      stats[num].totalAmt += amt;
+      stats[num].prizes[amt] = (stats[num].prizes[amt] || 0) + 1;
+      totalWins += 1;
     }
 
-    if (totalWinsWithNum === 0) {
+    const nums = Object.keys(stats);
+    if (totalWins === 0 || nums.length === 0) {
       recCard.style.display = 'none';
       return;
     }
 
-    const sortedByFreq = Object.keys(stats).sort((a, b) => stats[b].freq - stats[a].freq);
-    const sortedByAmt = Object.keys(stats).sort((a, b) => stats[b].amt - stats[a].amt);
+    /* For each number, find its dominant prize tier and how consistent it is. */
+    const patterns = nums.map(num => {
+      const s = stats[num];
+      let domPrize = 0, domCount = 0;
+      for (const [amt, c] of Object.entries(s.prizes)) {
+        if (c > domCount) { domCount = c; domPrize = parseFloat(amt); }
+      }
+      const consistency = domCount / s.freq;            // how reliably it hits the same prize
+      const share = s.freq / totalWins;                 // share of all wins for this game
+      // Score rewards numbers seen often AND consistently hitting the same prize.
+      const score = s.freq * consistency;
+      return { num, freq: s.freq, domPrize, domCount, consistency, share, totalAmt: s.totalAmt, score };
+    }).sort((a, b) => b.score - a.score);
 
-    const bestFreqNum = sortedByFreq[0];
-    const bestFreqVal = stats[bestFreqNum].freq;
-    const bestFreqPct = ((bestFreqVal / totalWinsWithNum) * 100).toFixed(1);
+    function confLabel(freq) {
+      if (freq >= 5) return ['conf-high', 'High confidence'];
+      if (freq >= 3) return ['conf-med', 'Medium confidence'];
+      return ['conf-low', 'Low — small sample'];
+    }
 
-    const bestAmtNum = sortedByAmt[0];
-    const bestAmtVal = stats[bestAmtNum].amt;
+    const top = patterns.slice(0, 3);
+    const best = top[0];
 
-    let gameText = gameFilter === 'all' ? 'across all games' : 'for the selected game';
-    
-    let html = `
-      <p style="margin-bottom: 8px;">Based on your logging history ${gameText}:</p>
-      <ul style="margin-left: 20px; margin-bottom: 12px; list-style-type: disc;">
-        <li style="margin-bottom: 6px;">
-          🎯 <strong>Ticket Number #${bestFreqNum}</strong> has the <strong>highest win probability</strong>. It won <strong>${bestFreqVal} times</strong>, representing <strong>${bestFreqPct}%</strong> of your winning tickets.
-        </li>
-        ${bestAmtNum !== bestFreqNum ? `
-        <li style="margin-bottom: 6px;">
-          💰 <strong>Ticket Number #${bestAmtNum}</strong> has the <strong>highest cash yield</strong>, returning a total of <strong>${fmt(bestAmtVal)}</strong>.
-        </li>` : `
-        <li style="margin-bottom: 6px;">
-          💰 It is also your <strong>highest cash yield</strong> ticket number, returning a total of <strong>${fmt(bestAmtVal)}</strong>.
-        </li>`}
-      </ul>
-      <p style="font-weight: 500; color: var(--gold); background: rgba(255, 215, 0, 0.04); border: 1px dashed rgba(255, 215, 0, 0.25); padding: 10px 14px; border-radius: 8px;">
-        💡 <strong>Next Purchase Advice:</strong> When buying this scratch-off next time, look for ticket <strong>#${bestFreqNum}</strong> to maximize your probability of winning!
+    let rows = top.map((p, i) => {
+      const [cls, lbl] = confLabel(p.freq);
+      const consistencyPct = Math.round(p.consistency * 100);
+      const prizeStr = p.domPrize > 0 ? '$' + fmtPrize(p.domPrize) : 'a non-cash result';
+      return `
+        <div class="rec-pattern${i === 0 ? ' best' : ''}">
+          <div class="rec-rank">${i + 1}</div>
+          <div class="rec-num-badge">#${esc(p.num)}</div>
+          <div class="rec-detail">
+            Hits <span class="rec-prize">${prizeStr}</span> in
+            <strong>${p.domCount} of ${p.freq}</strong> logged wins
+            (<strong>${consistencyPct}%</strong> consistency).
+          </div>
+          <span class="conf-chip ${cls}">${lbl}</span>
+        </div>`;
+    }).join('');
+
+    const bestPrizeStr = best.domPrize > 0 ? '$' + fmtPrize(best.domPrize) : 'its usual result';
+    const sampleNote = best.freq < 3
+      ? 'Sample is still small — log more wins for this game to confirm the pattern.'
+      : `Across ${totalWins} logged win${totalWins === 1 ? '' : 's'} for this game, this is the clearest repeat.`;
+
+    recContent.innerHTML = `
+      <p style="margin-bottom:12px;">Strongest ticket-number patterns for <strong>${esc(gameName)}</strong>:</p>
+      ${rows}
+      <p style="font-weight:500; color: var(--gold); background: rgba(255,215,0,0.04); border:1px dashed rgba(255,215,0,0.25); padding:10px 14px; border-radius:8px; margin-top:6px;">
+        💡 <strong>Watch for ticket #${esc(best.num)}</strong> — it has been your most reliable hit (${bestPrizeStr}). ${sampleNote}
+      </p>
+      <p class="rec-disclaimer">
+        ⚠️ This reflects only the tickets logged here, not the lottery's real odds. Scratch-off outcomes are random and independent — past results don't guarantee future wins. Play for fun, within a budget.
       </p>
     `;
-
-    recContent.innerHTML = html;
     recCard.style.display = '';
   }
 
@@ -344,29 +383,22 @@
 
     const valueLabel = _chartType === 'freq' ? 'Wins Frequency' : 'Total Amount Won ($)';
 
-    const chartCtx = ctx.getContext('2d');
-    const gradient = chartCtx.createLinearGradient(0, 0, 0, 400);
-    gradient.addColorStop(0, 'rgba(6, 214, 160, 0.3)');
-    gradient.addColorStop(1, 'transparent');
+    // Highlight the strongest ticket number(s) in gold; others muted gold.
+    const maxVal = Math.max(...dataValues);
+    const barColors = dataValues.map(v => v === maxVal && maxVal > 0 ? '#FFD700' : 'rgba(255,215,0,0.35)');
 
     _chartInstance = new Chart(ctx, {
-      type: 'line',
+      type: 'bar',
       data: {
         labels: labels,
         datasets: [{
           label: valueLabel,
           data: dataValues,
-          borderColor: '#06D6A0',
-          backgroundColor: gradient,
-          borderWidth: 2.5,
-          tension: 0.4,
-          fill: true,
-          pointBackgroundColor: '#06D6A0',
-          pointBorderColor: '#0a0a12',
-          pointBorderWidth: 2,
-          pointRadius: 4,
-          pointHoverRadius: 6,
-          pointHoverBackgroundColor: '#FFD700',
+          backgroundColor: barColors,
+          borderColor: '#FFD700',
+          borderWidth: 1,
+          borderRadius: 6,
+          maxBarThickness: 48,
         }]
       },
       options: {
@@ -534,11 +566,20 @@
       updateDashboard();
     });
 
-    /* Game filter selection */
-    document.getElementById('anal-game-filter').addEventListener('change', (e) => {
-      _gameFilter = e.target.value;
-      updateDashboard();
-    });
+    /* Game box selection */
+    const gameBoxes = document.getElementById('anal-game-boxes');
+    if (gameBoxes) {
+      gameBoxes.addEventListener('click', (e) => {
+        const box = e.target.closest('.game-box');
+        if (!box) return;
+        _gameFilter = box.dataset.game;
+        _priceFilter = 'all';
+        gameBoxes.querySelectorAll('.game-box').forEach(b => b.classList.remove('active'));
+        box.classList.add('active');
+        buildPriceFilter();
+        updateDashboard();
+      });
+    }
 
     /* Chart toggles */
     document.getElementById('toggle-freq').addEventListener('click', (e) => {
@@ -654,4 +695,4 @@
     setTimeout(() => t.className = 'toast', 2800);
   }
 
-})();
+})(); // The Pattern — per-game analytics
