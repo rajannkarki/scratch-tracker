@@ -5,7 +5,6 @@
 (function () {
   'use strict';
 
-  let _priceFilter = 'all';
   let _gameFilter = null; // selected gameNum — the pattern is per-game ONLY
   let _chartType = 'freq'; // 'freq' | 'amt'
   let _chartInstance = null;
@@ -74,16 +73,17 @@
   /* ── Dashboard Refreshing ────────────────────────────────── */
   function refreshDashboard(stateCode) {
     const tickets = getActiveTickets();
-    const wins = tickets.filter(t => t.outcome === 'win');
+    // We now analyze the frequency of ALL logged ticket numbers (wins AND losses).
+    const numbered = tickets.filter(t => (t.ticketNumber || '').trim());
     const noTicketsEl = document.getElementById('no-tickets-msg');
     const gridEl = document.getElementById('analytics-grid');
     const gameCardEl = document.getElementById('game-select-card');
 
-    if (wins.length === 0) {
+    if (numbered.length === 0) {
       if (noTicketsEl) {
         noTicketsEl.querySelector('p').textContent = _currentScope === 'personal'
-          ? 'No winning tickets logged yet. Start recording your scratch-off wins in the Tracker to unlock analytics!'
-          : 'No community winning tickets logged yet for this state.';
+          ? 'No ticket numbers logged yet. Start recording your scratch-offs (with their ticket numbers) in the Tracker to unlock analytics!'
+          : 'No community ticket numbers logged yet for this state.';
         noTicketsEl.style.display = '';
         const goBtn = noTicketsEl.querySelector('.add-btn');
         if (goBtn) goBtn.style.display = _currentScope === 'personal' ? 'inline-block' : 'none';
@@ -96,26 +96,9 @@
       if (gameCardEl) gameCardEl.style.display = '';
     }
 
-    buildGameBoxes(stateCode || 'TX');
-    buildPriceFilter();
+    buildGameBoxes();
     updateDashboard();
     buildHotNumbers(tickets);
-  }
-
-  /* ── Build filters ───────────────────────────────────────── */
-  function buildPriceFilter() {
-    let tickets = getActiveTickets();
-    if (_gameFilter) tickets = tickets.filter(t => t.gameNum === _gameFilter);
-    const prices = [...new Set(tickets.map(g => g.price))].sort((a, b) => a - b);
-    const container = document.getElementById('price-filter');
-    if (!container) return;
-
-    let html = '<button class="price-chip active" data-price="all">All</button>';
-    for (const p of prices) {
-      if (p) html += `<button class="price-chip" data-price="${p}">$${p}</button>`;
-    }
-    container.innerHTML = html;
-    _priceFilter = 'all';
   }
 
   function buildGameBoxes() {
@@ -123,25 +106,25 @@
     if (!container) return;
 
     const tickets = getActiveTickets();
-    const wins = tickets.filter(t => t.outcome === 'win');
+    // One box per game that has at least one logged ticket NUMBER (wins or losses).
+    const numbered = tickets.filter(t => (t.ticketNumber || '').trim());
 
-    // Build one box per game that has at least one winning ticket logged.
     const byGame = {};
-    for (const t of wins) {
+    for (const t of numbered) {
       const num = t.gameNum;
-      if (!byGame[num]) byGame[num] = { num, name: t.gameName, price: t.price, wins: 0 };
-      byGame[num].wins += 1;
+      if (!byGame[num]) byGame[num] = { num, name: t.gameName, price: t.price, count: 0 };
+      byGame[num].count += 1;
     }
 
-    const games = Object.values(byGame).sort((a, b) => b.wins - a.wins);
+    const games = Object.values(byGame).sort((a, b) => b.count - a.count);
 
     if (games.length === 0) {
-      container.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;">No winning tickets to analyze yet.</p>';
+      container.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;">No ticket numbers to analyze yet.</p>';
       _gameFilter = null;
       return;
     }
 
-    // Keep current selection if still valid, otherwise default to the most-played game.
+    // Keep current selection if still valid, otherwise default to the most-logged game.
     if (!_gameFilter || !byGame[_gameFilter]) {
       _gameFilter = games[0].num;
     }
@@ -151,7 +134,7 @@
         <div class="game-box-name" title="${esc(g.name)}">${esc(g.name)}</div>
         <div class="game-box-meta">
           <span>$${g.price} ticket</span>
-          <span class="game-box-count">${g.wins} win${g.wins === 1 ? '' : 's'}</span>
+          <span class="game-box-count">${g.count} logged</span>
         </div>
       </div>
     `).join('');
@@ -160,24 +143,15 @@
   /* ── Update Dashboard Metrics & Visuals ──────────────────── */
   function updateDashboard() {
     const tickets = getActiveTickets();
-    let filteredWins = tickets.filter(t => t.outcome === 'win');
 
-    /* Filter by Game — a single game is ALWAYS selected; the pattern is per-game */
-    if (_gameFilter) {
-      filteredWins = filteredWins.filter(t => t.gameNum === _gameFilter);
-    } else {
-      filteredWins = [];
-    }
-
-    /* Filter by Price (optional, within the selected game) */
-    if (_priceFilter !== 'all') {
-      filteredWins = filteredWins.filter(t => t.price === _priceFilter);
-    }
+    /* A single game is ALWAYS selected; the pattern is per-game. */
+    const gameTickets = _gameFilter ? tickets.filter(t => t.gameNum === _gameFilter) : [];
+    const filteredWins = gameTickets.filter(t => t.outcome === 'win');
 
     /* Update chart label with the selected game name */
     const labelEl = document.getElementById('chart-game-label');
     if (labelEl) {
-      const sel = filteredWins[0] || tickets.find(t => t.gameNum === _gameFilter);
+      const sel = gameTickets[0] || tickets.find(t => t.gameNum === _gameFilter);
       labelEl.textContent = sel ? '· ' + sel.gameName : '';
     }
 
@@ -210,11 +184,11 @@
     document.getElementById('m-max').textContent = fmt(maxWin);
     document.getElementById('m-total-won').textContent = fmt(totalCashWon);
 
-    /* 2. Render Historical Table */
+    /* 2. Render Historical Table (wins only) */
     renderWinsTable(filteredWins);
 
-    /* 3. Render Chart */
-    renderChart(filteredWins);
+    /* 3. Render Chart — ALL tickets for this game, so non-winning numbers count too */
+    renderChart(gameTickets);
 
     /* 4. Update Recommendations */
     updateRecommendations(filteredWins, _gameFilter);
@@ -377,28 +351,35 @@
       canvasCtx.fillStyle = '#777';
       canvasCtx.font = '16px Inter';
       canvasCtx.textAlign = 'center';
-      canvasCtx.fillText('Add tickets with winning numbers to see the distribution chart.', canvas.width / 2, canvas.height / 2);
+      canvasCtx.fillText('Add tickets with numbers to see the frequency chart.', canvas.width / 2, canvas.height / 2);
       return;
     }
 
-    const valueLabel = _chartType === 'freq' ? 'Wins Frequency' : 'Total Amount Won ($)';
+    const valueLabel = _chartType === 'freq' ? 'Ticket Frequency' : 'Total Amount Won ($)';
 
-    // Highlight the strongest ticket number(s) in gold; others muted gold.
-    const maxVal = Math.max(...dataValues);
-    const barColors = dataValues.map(v => v === maxVal && maxVal > 0 ? '#FFD700' : 'rgba(255,215,0,0.35)');
+    const chartCtx = ctx.getContext('2d');
+    const gradient = chartCtx.createLinearGradient(0, 0, 0, 400);
+    gradient.addColorStop(0, 'rgba(255, 215, 0, 0.30)');
+    gradient.addColorStop(1, 'transparent');
 
     _chartInstance = new Chart(ctx, {
-      type: 'bar',
+      type: 'line',
       data: {
         labels: labels,
         datasets: [{
           label: valueLabel,
           data: dataValues,
-          backgroundColor: barColors,
           borderColor: '#FFD700',
-          borderWidth: 1,
-          borderRadius: 6,
-          maxBarThickness: 48,
+          backgroundColor: gradient,
+          borderWidth: 2.5,
+          tension: 0.4,
+          fill: true,
+          pointBackgroundColor: '#FFD700',
+          pointBorderColor: '#0a0a12',
+          pointBorderWidth: 2,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          pointHoverBackgroundColor: '#06D6A0',
         }]
       },
       options: {
@@ -420,7 +401,7 @@
             callbacks: {
               label: function (context) {
                 const val = context.parsed.y;
-                return _chartType === 'freq' ? `${val} wins` : `$${val.toFixed(2)}`;
+                return _chartType === 'freq' ? `logged ${val}×` : `$${val.toFixed(2)}`;
               }
             }
           }
@@ -553,19 +534,6 @@
       }
     });
 
-    /* Price filter clicks */
-    document.getElementById('price-filter').addEventListener('click', (e) => {
-      const chip = e.target.closest('.price-chip');
-      if (!chip) return;
-
-      const val = chip.dataset.price;
-      _priceFilter = val === 'all' ? 'all' : parseInt(val, 10);
-
-      document.querySelectorAll('.price-chip').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-      updateDashboard();
-    });
-
     /* Game box selection */
     const gameBoxes = document.getElementById('anal-game-boxes');
     if (gameBoxes) {
@@ -573,10 +541,8 @@
         const box = e.target.closest('.game-box');
         if (!box) return;
         _gameFilter = box.dataset.game;
-        _priceFilter = 'all';
         gameBoxes.querySelectorAll('.game-box').forEach(b => b.classList.remove('active'));
         box.classList.add('active');
-        buildPriceFilter();
         updateDashboard();
       });
     }

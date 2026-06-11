@@ -16,6 +16,12 @@
     return _allTickets.filter(t => (t.status === 'approved' || !t.status) && t.outcome === 'win');
   }
 
+  // Approved community tickets that carry a ticket number (wins AND losses) —
+  // used for the per-game frequency chart, since all logged numbers matter.
+  function approvedNumbered() {
+    return _allTickets.filter(t => (t.status === 'approved' || !t.status) && (t.ticketNumber || '').trim());
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     /* 1. Check Firebase Config */
     if (!isFirebaseConfigured()) {
@@ -138,17 +144,17 @@
     const container = document.getElementById('anal-game-boxes');
     if (!container) return;
 
-    const wins = approvedWins();
+    const numbered = approvedNumbered();
     const byGame = {};
-    for (const t of wins) {
+    for (const t of numbered) {
       const num = t.gameNum;
-      if (!byGame[num]) byGame[num] = { num, name: t.gameName, price: t.price, wins: 0 };
-      byGame[num].wins += 1;
+      if (!byGame[num]) byGame[num] = { num, name: t.gameName, price: t.price, count: 0 };
+      byGame[num].count += 1;
     }
-    const games = Object.values(byGame).sort((a, b) => b.wins - a.wins);
+    const games = Object.values(byGame).sort((a, b) => b.count - a.count);
 
     if (games.length === 0) {
-      container.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;">No community winning tickets to analyze yet.</p>';
+      container.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;">No community ticket numbers to analyze yet.</p>';
       _gameFilter = null;
       return;
     }
@@ -162,7 +168,7 @@
         <div class="game-box-name" title="${esc(g.name)}">${esc(g.name)}</div>
         <div class="game-box-meta">
           <span>$${g.price} ticket</span>
-          <span class="game-box-count">${g.wins} win${g.wins === 1 ? '' : 's'}</span>
+          <span class="game-box-count">${g.count} logged</span>
         </div>
       </div>
     `).join('');
@@ -289,16 +295,16 @@
     const ctx = document.getElementById('community-chart');
     if (!ctx) return;
 
-    // Only the selected game's winning tickets — the pattern is per-game.
-    const wins = approvedWins().filter(t => _gameFilter && t.gameNum === _gameFilter);
+    // Only the selected game's numbered tickets (wins AND losses) — the pattern is per-game.
+    const rows = approvedNumbered().filter(t => _gameFilter && t.gameNum === _gameFilter);
 
     // Update chart label with the game name
     const labelEl = document.getElementById('chart-game-label');
-    if (labelEl) labelEl.textContent = wins[0] ? '· ' + wins[0].gameName : '';
+    if (labelEl) labelEl.textContent = rows[0] ? '· ' + rows[0].gameName : '';
 
     // Aggregate by ticket number
     const dataMap = {};
-    for (const t of wins) {
+    for (const t of rows) {
       const num = (t.ticketNumber || '').trim();
       if (!num) continue;
       if (!dataMap[num]) dataMap[num] = { freq: 0, amt: 0 };
@@ -330,22 +336,31 @@
       return;
     }
 
-    const valueLabel = _chartType === 'freq' ? 'Wins Frequency' : 'Total Amount Won ($)';
-    const maxVal = Math.max(...dataValues);
-    const barColors = dataValues.map(v => v === maxVal && maxVal > 0 ? '#FFD700' : 'rgba(255,215,0,0.35)');
+    const valueLabel = _chartType === 'freq' ? 'Ticket Frequency' : 'Total Amount Won ($)';
+
+    const chartCtx = ctx.getContext('2d');
+    const gradient = chartCtx.createLinearGradient(0, 0, 0, 400);
+    gradient.addColorStop(0, 'rgba(255, 215, 0, 0.30)');
+    gradient.addColorStop(1, 'transparent');
 
     _chartInstance = new Chart(ctx, {
-      type: 'bar',
+      type: 'line',
       data: {
         labels: labels,
         datasets: [{
           label: valueLabel,
           data: dataValues,
-          backgroundColor: barColors,
           borderColor: '#FFD700',
-          borderWidth: 1,
-          borderRadius: 6,
-          maxBarThickness: 48,
+          backgroundColor: gradient,
+          borderWidth: 2.5,
+          tension: 0.4,
+          fill: true,
+          pointBackgroundColor: '#FFD700',
+          pointBorderColor: '#0D1117',
+          pointBorderWidth: 2,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          pointHoverBackgroundColor: '#06D6A0',
         }]
       },
       options: {
@@ -365,7 +380,7 @@
             callbacks: {
               label: function (context) {
                 const val = context.parsed.y;
-                return _chartType === 'freq' ? `${val} wins` : `$${val.toFixed(2)}`;
+                return _chartType === 'freq' ? `logged ${val}×` : `$${val.toFixed(2)}`;
               }
             }
           }
