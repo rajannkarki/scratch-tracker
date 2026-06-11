@@ -174,4 +174,51 @@
           <select id="profile-state" class="anal-select" style="width:100%;"></select>
         </div>
         <button class="add-btn" id="profile-save-btn" style="width:100%; margin-top:8px;">Save Changes</button>
-      </div
+      </div>
+    </div>
+  </div>
+
+  <!-- User Detail Modal (admin drilldown into a user's logged tickets) -->
+  <div id="user-detail-modal" class="modal" style="display:none;">
+    <div class="modal-content wide glass-card">
+      <div class="modal-hdr">
+        <h2 id="user-detail-title" style="font-family:'Outfit',sans-serif; color:var(--gold); font-size:1.3rem;">👤 User Tickets</h2>
+        <span class="modal-close" id="user-detail-close" style="cursor:pointer; font-size:1.5rem; color:var(--muted);">&times;</span>
+      </div>
+      <div class="modal-body" style="margin-top:8px;">
+        <p id="user-detail-sub" style="color:var(--muted); font-size:0.82rem; margin-bottom:4px;"></p>
+        <div class="table-wrap" style="max-height:50vh; overflow:auto;">
+          <table class="user-tickets-table">
+            <thead>
+              <tr>
+                <th>Game</th>
+                <th>Ticket #</th>
+                <th>Outcome</th>
+                <th>Date</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="user-detail-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Firebase SDK (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  <!-- App Scripts -->
+  <script src="js/firebase-config.js?v=7"></script>
+  <script src="js/games.js?v=7"></script>
+  <script src="js/auth.js?v=7"></script>
+  <script src="js/tracker.js?v=7"></script>
+  <script src="js/admin.js?v=7"></script>
+
+</body>
+</html>
