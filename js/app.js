@@ -200,6 +200,12 @@
       UI.onCustomInput(e.target.value);
     });
 
+    /* "I don't have the number" checkbox */
+    const noNumChk = document.getElementById('no-ticket-num');
+    if (noNumChk) {
+      noNumChk.addEventListener('change', () => UI.toggleNoNumber(noNumChk.checked));
+    }
+
     /* Add ticket button */
     document.getElementById('add-btn').addEventListener('click', async () => {
       if (!UI.selectedGame) {
@@ -224,14 +230,21 @@
       const winAmt = parseFloat(customVal);
       const isWin = !isNaN(winAmt) && winAmt > 0;
       const date = document.getElementById('f-date').value;
-      const ticketNum = document.getElementById('ticket-num').value.trim();
+      const noNumberEl = document.getElementById('no-ticket-num');
+      const noNumber = noNumberEl && noNumberEl.checked;
+      const ticketNum = noNumber ? '' : document.getElementById('ticket-num').value.trim();
 
       if (!date) {
         UI.showToast('Pick a date!', 'e');
         return;
       }
 
-
+      /* Ticket number is required — the whole point is tracking numbers.
+         The only exception is when the user explicitly has no number. */
+      if (!noNumber && !ticketNum) {
+        UI.showToast('Enter the ticket number, or check “I don\'t have the number”.', 'e');
+        return;
+      }
 
       const ticketData = {
         gameNum: UI.selectedGame.num || 'Custom',

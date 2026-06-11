@@ -103,6 +103,7 @@ const UI = {
     UI.buildPrizeChips();
     document.getElementById('custom-amt').value = '';
     document.getElementById('ticket-num').value = '';
+    UI.resetNoNumber();
     document.getElementById('ticket-num-section').style.display = '';
   },
 
@@ -172,6 +173,7 @@ const UI = {
     document.getElementById('prize-chips').innerHTML = '';
     document.getElementById('custom-amt').value = '';
     document.getElementById('ticket-num').value = '';
+    UI.resetNoNumber();
     document.getElementById('ticket-num-section').style.display = 'none';
     UI.filterGames('');
   },
@@ -223,6 +225,30 @@ const UI = {
     ticketSection.style.display = '';
   },
 
+  /* Enable/disable the ticket-number input based on the "no number" checkbox */
+  toggleNoNumber(checked) {
+    const input = document.getElementById('ticket-num');
+    const req = document.getElementById('ticket-num-req');
+    if (!input) return;
+    if (checked) {
+      input.value = '';
+      input.disabled = true;
+      input.classList.add('disabled');
+      if (req) req.textContent = '(skipped)';
+    } else {
+      input.disabled = false;
+      input.classList.remove('disabled');
+      if (req) req.textContent = '(required)';
+    }
+  },
+
+  /* Reset the "no number" checkbox and re-enable the input */
+  resetNoNumber() {
+    const chk = document.getElementById('no-ticket-num');
+    if (chk) chk.checked = false;
+    UI.toggleNoNumber(false);
+  },
+
   /* ── Stats & Records ────────────────────────────────────── */
   renderAll() {
     UI.renderStats();
@@ -267,14 +293,12 @@ const UI = {
             month: 'short', day: 'numeric', year: 'numeric'
           })
         : '';
+      // Show the ticket number, or a subtle "no #" mark when the user didn't have one.
+      // Approval status (pending/approved/rejected) is intentionally NOT shown to users —
+      // their ticket simply counts in their own totals.
       const ticketBadge = t.ticketNumber
         ? `<span class="ticket-badge">#${UI.esc(t.ticketNumber)}</span>`
-        : '';
-
-      const status = t.status || 'approved';
-      const statusBadge = isWin
-        ? `<span class="status-badge ${status}">${status}</span>`
-        : '';
+        : `<span class="ticket-badge no-num">no #</span>`;
 
       return `<div class="rec-card">
         <div class="rec-bar ${t.outcome}"></div>
@@ -284,7 +308,6 @@ const UI = {
             ${dateStr ? `<span>📅 ${dateStr}</span>` : ''}
             <span>Game #${t.gameNum}</span>
             <span class="badge ${t.outcome}">${isWin ? 'WIN' : 'NO WIN'}</span>
-            ${statusBadge}
             ${ticketBadge}
           </div>
         </div>

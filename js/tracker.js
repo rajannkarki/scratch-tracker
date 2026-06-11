@@ -48,16 +48,22 @@ const Tracker = {
    * @returns {Promise<Object>} the new ticket (with Firestore-assigned id)
    */
   async addTicket(userId, ticketData) {
+    const hasNumber = !!(ticketData.ticketNumber && ticketData.ticketNumber.trim());
+
     const docData = {
       gameNum:      ticketData.gameNum,
       gameName:     ticketData.gameName,
       price:        ticketData.price,
       winAmt:       ticketData.winAmt,
       outcome:      ticketData.outcome,       // 'win' | 'loss'
-      ticketNumber: ticketData.ticketNumber || "",
+      ticketNumber: hasNumber ? ticketData.ticketNumber.trim() : "",
       date:         ticketData.date,           // 'YYYY-MM-DD'
       state:        Auth.currentUser.state || "TX",
-      status:       "pending",                 // 'pending' | 'approved' | 'rejected'
+      // Tickets WITH a number go to the moderation queue for community curation.
+      // Tickets WITHOUT a number aren't used in number analysis, so they skip
+      // approval entirely ('no-number'): never queued, never in community data,
+      // but still counted in the owner's personal totals.
+      status:       hasNumber ? "pending" : "no-number",
       createdAt:    firebase.firestore.FieldValue.serverTimestamp()
     };
 
