@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Dashboard — Scratch Tracker</title>
-  <meta name="description" content="Admin panel for Scratch Tracker — manage users, roles, and view system-wide analytics.">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎰</text></svg>">
+  <title>Admin Dashboard — The Pattern</title>
+  <meta name="description" content="Admin panel for The Pattern — manage users, roles, and view system-wide analytics.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none'%3E%3Ccircle cx='26' cy='26' r='18' stroke='%23FFD700' stroke-width='3' fill='none'/%3E%3Cline x1='39' y1='39' x2='56' y2='56' stroke='%23FFD700' stroke-width='4' stroke-linecap='round'/%3E%3Ctext x='26' y='31' text-anchor='middle' font-family='Outfit' font-weight='800' font-size='16' fill='%2300FF88'%3E%23%3C/text%3E%3C/svg%3E">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=5">
+  <link rel="stylesheet" href="css/style.css?v=6">
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -18,10 +18,12 @@
 
   <nav class="navbar">
     <div class="nav-inner">
+      <a href="index.html" class="nav-brand-link">
       <div class="nav-brand">
-        <span class="nav-logo">🎰</span>
-        <span class="nav-title">Scratch Tracker</span>
+        <svg class="nav-logo-svg" width="24" height="24" viewBox="0 0 64 64" fill="none"><circle cx="26" cy="26" r="18" stroke="#FFD700" stroke-width="3" fill="none"/><line x1="39" y1="39" x2="56" y2="56" stroke="#FFD700" stroke-width="4" stroke-linecap="round"/><text x="26" y="31" text-anchor="middle" font-family="Outfit" font-weight="800" font-size="16" fill="#00FF88">#</text></svg>
+        <span class="nav-title">The Pattern</span>
       </div>
+      </a>
       <div class="nav-links">
         <a href="index.html" class="nav-link" id="nav-tracker">Tracker</a>
         <a href="prizes.html" class="nav-link" id="nav-prizes">Win Analytics</a>
@@ -177,11 +179,11 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
   <!-- App Scripts -->
-  <script src="js/firebase-config.js?v=5"></script>
-  <script src="js/games.js?v=5"></script>
-  <script src="js/auth.js?v=5"></script>
-  <script src="js/tracker.js?v=5"></script>
-  <script src="js/admin.js?v=5"></script>
+  <script src="js/firebase-config.js?v=6"></script>
+  <script src="js/games.js?v=6"></script>
+  <script src="js/auth.js?v=6"></script>
+  <script src="js/tracker.js?v=6"></script>
+  <script src="js/admin.js?v=6"></script>
 
 </body>
 </html>

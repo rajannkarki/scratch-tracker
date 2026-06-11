@@ -1,5 +1,5 @@
 /* ============================================================
-   app.js — Main app orchestration for Scratch Tracker
+   app.js — Main app orchestration for The Pattern
    ============================================================ */
 
 (function () {
@@ -149,6 +149,7 @@
       const opt = e.target.closest('.game-opt');
       if (opt && opt.dataset.idx !== undefined) {
         UI.pickGame(parseInt(opt.dataset.idx, 10));
+        if (UI.selectedGame) loadCommunityTip(UI.selectedGame.num);
       }
     });
 
@@ -230,16 +231,7 @@
         return;
       }
 
-      if (isWin) {
-        if (!ticketNum) {
-          UI.showToast('Enter the winning ticket number!', 'e');
-          return;
-        }
-        if (!/^\d{1,3}$/.test(ticketNum)) {
-          UI.showToast('Ticket number must be numeric and between 1 and 3 digits!', 'e');
-          return;
-        }
-      }
+
 
       const ticketData = {
         gameNum: UI.selectedGame.num || 'Custom',
@@ -247,7 +239,7 @@
         price: UI.selectedGame.price,
         winAmt: isNaN(winAmt) ? 0 : winAmt,
         outcome: isWin ? 'win' : 'loss',
-        ticketNumber: isWin ? ticketNum : '',
+        ticketNumber: ticketNum,
         date: date
       };
 
@@ -260,6 +252,8 @@
           isWin ? 's' : ''
         );
         UI.resetGame();
+        const tipEl = document.getElementById('community-tip');
+        if (tipEl) tipEl.style.display = 'none';
         document.getElementById('custom-amt').value = '';
       } catch (err) {
         console.error('Failed to add ticket:', err);
@@ -360,6 +354,35 @@
           UI.hideLoading();
         }
       });
+    }
+  }
+
+  /* ── Community Tip ──────────────────────────────────────── */
+  async function loadCommunityTip(gameNum) {
+    const tipEl = document.getElementById('community-tip');
+    if (!tipEl || !db) return;
+    try {
+      const snap = await db.collectionGroup('tickets')
+        .where('gameNum', '==', gameNum)
+        .where('status', '==', 'approved')
+        .get();
+      const counts = {};
+      snap.docs.forEach(doc => {
+        const d = doc.data();
+        if (d.ticketNumber) {
+          counts[d.ticketNumber] = (counts[d.ticketNumber] || 0) + 1;
+        }
+      });
+      const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]);
+      if (sorted.length > 0) {
+        const [num, cnt] = sorted[0];
+        tipEl.innerHTML = `💡 <strong>Community tip:</strong> Ticket #${num} has been logged ${cnt} time${cnt>1?'s':''} for this game.`;
+        tipEl.style.display = '';
+      } else {
+        tipEl.style.display = 'none';
+      }
+    } catch(e) {
+      tipEl.style.display = 'none';
     }
   }
 

@@ -1,5 +1,5 @@
 /* ============================================================
-   tracker.js — Ticket tracking module (Firestore compat SDK)
+   tracker.js — Ticket tracking module for The Pattern (Firestore compat SDK)
    ============================================================
    Data model — each ticket is stored at:
      users/{userId}/tickets/{ticketId}

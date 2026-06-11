@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Scratch Tracker — Lottery Ticket Tracker</title>
-  <meta name="description" content="Track your scratch-off lottery tickets, record winning numbers, and analyze your spending across all US states.">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎰</text></svg>">
+  <title>The Pattern — Scratch-Off Ticket Number Tracker</title>
+  <meta name="description" content="The Pattern — Track your scratch-off lottery tickets, record winning numbers, and analyze your spending across all US states.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none'%3E%3Ccircle cx='26' cy='26' r='18' stroke='%23FFD700' stroke-width='3' fill='none'/%3E%3Cline x1='39' y1='39' x2='56' y2='56' stroke='%23FFD700' stroke-width='4' stroke-linecap='round'/%3E%3Ctext x='26' y='31' text-anchor='middle' font-family='Outfit' font-weight='800' font-size='16' fill='%2300FF88'%3E%23%3C/text%3E%3C/svg%3E">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=5">
+  <link rel="stylesheet" href="css/style.css?v=6">
 </head>
 <body>
 
@@ -17,8 +17,8 @@
   <!-- Setup Screen (Firebase not configured) -->
   <div id="setup-screen" class="screen" style="display:none">
     <div class="setup-card">
-      <div class="logo-large">🎰</div>
-      <h1>Scratch Tracker</h1>
+      <div class="logo-large"><svg width="64" height="64" viewBox="0 0 64 64" fill="none"><circle cx="26" cy="26" r="18" stroke="#FFD700" stroke-width="3" fill="none"/><line x1="39" y1="39" x2="56" y2="56" stroke="#FFD700" stroke-width="4" stroke-linecap="round"/><text x="26" y="31" text-anchor="middle" font-family="Outfit" font-weight="800" font-size="16" fill="#00FF88">#</text></svg></div>
+      <h1>The Pattern</h1>
       <p>Firebase is not configured yet. Follow the README instructions to set up your Firebase project.</p>
       <div class="setup-steps">
         <p>1. Create a Firebase project at console.firebase.google.com</p>
@@ -32,9 +32,9 @@
   <!-- Auth Screen -->
   <div id="auth-screen" class="screen" style="display:none">
     <div class="auth-card">
-      <div class="auth-logo">🎰</div>
+      <div class="auth-logo"><svg width="64" height="64" viewBox="0 0 64 64" fill="none"><circle cx="26" cy="26" r="18" stroke="#FFD700" stroke-width="3" fill="none"/><line x1="39" y1="39" x2="56" y2="56" stroke="#FFD700" stroke-width="4" stroke-linecap="round"/><text x="26" y="31" text-anchor="middle" font-family="Outfit" font-weight="800" font-size="16" fill="#00FF88">#</text></svg></div>
       <h1 class="auth-title" id="auth-title">Sign In</h1>
-      <p class="auth-subtitle">Track your scratch-off wins</p>
+      <p class="auth-subtitle">Find the winning pattern</p>
       <div class="auth-error" id="auth-error" style="display:none"></div>
       <form id="auth-form">
         <div id="signup-fields" style="display:none">
@@ -78,10 +78,12 @@
   <div id="app-screen" class="screen" style="display:none">
     <nav class="navbar">
       <div class="nav-inner">
+        <a href="index.html" class="nav-brand-link">
         <div class="nav-brand">
-          <span class="nav-logo">🎰</span>
-          <span class="nav-title">Scratch Tracker</span>
+          <svg class="nav-logo-svg" width="24" height="24" viewBox="0 0 64 64" fill="none"><circle cx="26" cy="26" r="18" stroke="#FFD700" stroke-width="3" fill="none"/><line x1="39" y1="39" x2="56" y2="56" stroke="#FFD700" stroke-width="4" stroke-linecap="round"/><text x="26" y="31" text-anchor="middle" font-family="Outfit" font-weight="800" font-size="16" fill="#00FF88">#</text></svg>
+          <span class="nav-title">The Pattern</span>
         </div>
+        </a>
         <div class="nav-links">
           <a href="index.html" class="nav-link active" id="nav-tracker">Tracker</a>
           <a href="prizes.html" class="nav-link" id="nav-prizes">Analytics</a>
@@ -152,9 +154,10 @@
         </div>
 
         <div class="ticket-num-section" id="ticket-num-section" style="display:none">
-          <label class="ticket-num-label">🏆 Winning Ticket #</label>
+          <label class="ticket-num-label">🎟️ Ticket # <span style="font-weight:400; opacity:0.6;">(optional)</span></label>
           <input class="ticket-num-input" id="ticket-num" type="text" placeholder="e.g. 18">
         </div>
+        <div id="community-tip" style="display:none"></div>
 
         <div class="date-row">
           <label>Date scratched:</label>
@@ -219,11 +222,11 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
   <!-- App Scripts (order matters) -->
-  <script src="js/firebase-config.js?v=5"></script>
-  <script src="js/games.js?v=5"></script>
-  <script src="js/auth.js?v=5"></script>
-  <script src="js/tracker.js?v=5"></script>
-  <script src="js/ui.js?v=5"></script>
-  <script src="js/app.js?v=5"></script>
+  <script src="js/firebase-config.js?v=6"></script>
+  <script src="js/games.js?v=6"></script>
+  <script src="js/auth.js?v=6"></script>
+  <script src="js/tracker.js?v=6"></script>
+  <script src="js/ui.js?v=6"></script>
+  <script src="js/app.js?v=6"></script>
 </body>
 </html>

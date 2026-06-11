@@ -1,5 +1,5 @@
 /* ============================================================
-   ui.js — UI rendering module for Scratch Tracker
+   ui.js — UI rendering module for The Pattern
    ============================================================ */
 
 const UI = {
@@ -103,7 +103,7 @@ const UI = {
     UI.buildPrizeChips();
     document.getElementById('custom-amt').value = '';
     document.getElementById('ticket-num').value = '';
-    document.getElementById('ticket-num-section').style.display = 'none';
+    document.getElementById('ticket-num-section').style.display = '';
   },
 
   showCustomGameFields() {
@@ -200,11 +200,10 @@ const UI = {
 
     if (val === 'loss') {
       customEl.value = '0';
-      ticketSection.style.display = 'none';
     } else {
       customEl.value = val;
-      ticketSection.style.display = '';
     }
+    ticketSection.style.display = '';
   },
 
   onCustomInput(val) {
@@ -219,13 +218,9 @@ const UI = {
       else if (parseFloat(cv) === numVal) c.classList.add('selected');
     });
 
-    // Show/hide ticket number input
+    // Always show ticket number input
     const ticketSection = document.getElementById('ticket-num-section');
-    if (numVal > 0) {
-      ticketSection.style.display = '';
-    } else {
-      ticketSection.style.display = 'none';
-    }
+    ticketSection.style.display = '';
   },
 
   /* ── Stats & Records ────────────────────────────────────── */
@@ -272,7 +267,7 @@ const UI = {
             month: 'short', day: 'numeric', year: 'numeric'
           })
         : '';
-      const ticketBadge = isWin && t.ticketNumber
+      const ticketBadge = t.ticketNumber
         ? `<span class="ticket-badge">#${UI.esc(t.ticketNumber)}</span>`
         : '';
 

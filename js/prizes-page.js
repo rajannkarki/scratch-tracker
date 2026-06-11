@@ -1,5 +1,5 @@
 /* ============================================================
-   prizes-page.js — Win Analytics Page Controller
+   prizes-page.js — Win Analytics Page Controller for The Pattern
    ============================================================ */
 
 (function () {
@@ -102,6 +102,7 @@
     buildPriceFilter();
     buildGameFilter(stateCode || 'TX');
     updateDashboard();
+    buildHotNumbers(tickets);
   }
 
   /* ── Build filters ───────────────────────────────────────── */
@@ -417,6 +418,55 @@
         }
       }
     });
+  }
+
+  /* ── Hot Numbers ─────────────────────────────────────────── */
+  function buildHotNumbers(tickets) {
+    const section = document.getElementById('hot-numbers-section');
+    if (!section) return;
+
+    // Filter to tickets that have a ticketNumber
+    const withNums = tickets.filter(t => (t.ticketNumber || '').trim());
+    if (withNums.length === 0) {
+      section.innerHTML = '<p style="color:var(--muted); font-size:0.85rem;">No ticket number data yet. Start logging ticket numbers to reveal patterns!</p>';
+      return;
+    }
+
+    // Group by gameNum → winAmt → ticketNumber
+    const games = {};
+    for (const t of withNums) {
+      const gKey = t.gameNum;
+      if (!games[gKey]) games[gKey] = { name: t.gameName, price: t.price, prizes: {} };
+      const prizeKey = t.winAmt || 0;
+      if (!games[gKey].prizes[prizeKey]) games[gKey].prizes[prizeKey] = {};
+      const num = t.ticketNumber.trim();
+      games[gKey].prizes[prizeKey][num] = (games[gKey].prizes[prizeKey][num] || 0) + 1;
+    }
+
+    let html = '';
+    for (const [gameNum, gameData] of Object.entries(games)) {
+      html += `<div class="hot-game-block">`;
+      html += `<div class="hot-game-title">${esc(gameData.name)} · $${gameData.price} ticket</div>`;
+      
+      // Sort prize tiers descending
+      const prizeTiers = Object.keys(gameData.prizes).map(Number).sort((a,b) => b - a);
+      for (const prize of prizeTiers) {
+        const nums = gameData.prizes[prize];
+        const sorted = Object.entries(nums).sort((a,b) => b[1] - a[1]);
+        const prizeLabel = prize > 0 ? `$${fmtPrize(prize)}` : 'No Win';
+        
+        html += `<div class="hot-prize-row">`;
+        html += `<span class="hot-prize-label">${prizeLabel} →</span>`;
+        for (const [num, count] of sorted) {
+          const isFire = count >= 3;
+          html += `<span class="hot-num${isFire ? ' fire' : ''}">#${esc(num)} (×${count}${isFire ? ' <span class="fire-icon">🔥</span>' : ''})</span>`;
+        }
+        html += `</div>`;
+      }
+      html += `</div>`;
+    }
+
+    section.innerHTML = html;
   }
 
   /* ── Wire events ─────────────────────────────────────────── */
