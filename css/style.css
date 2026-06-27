@@ -967,10 +967,10 @@ h1, .nav-title, .auth-title, .form-title, .prizes-title,
 .freq-table-wrap { max-height: 420px; overflow-y: auto; }
 .freq-table { width: 100%; border-collapse: collapse; }
 .freq-table th {
-  position: sticky; top: 0; background: var(--card);
+  position: sticky; top: 0; z-index: 2; background: #12131d;
   font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px;
   color: var(--muted); text-align: left; padding: 8px 10px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border2);
 }
 .freq-table td {
   padding: 9px 10px; font-size: 0.85rem; border-bottom: 1px solid var(--border);

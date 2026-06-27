@@ -309,9 +309,11 @@
       byNum[num].amts[amt] = (byNum[num].amts[amt] || 0) + 1;
     }
 
-    const list = Object.values(byNum).sort((a, b) =>
-      b.total - a.total || a.num.localeCompare(b.num)
-    );
+    const list = Object.values(byNum).sort((a, b) => {
+      const na = parseInt(a.num, 10), nb = parseInt(b.num, 10);
+      if (isNaN(na) || isNaN(nb)) return a.num.localeCompare(b.num);
+      return na - nb;
+    });
 
     if (list.length === 0) {
       tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:20px;">No ticket numbers logged for this game yet.</td></tr>';
@@ -415,7 +417,11 @@
           const loading = document.getElementById('loading-overlay');
           if (loading) loading.classList.remove('hidden');
           try {
-            const snap = await db.collectionGroup('tickets').get();
+            // Cap the read so this doesn't pull the entire collection as data grows.
+            const snap = await db.collectionGroup('tickets')
+              .orderBy('createdAt', 'desc')
+              .limit(3000)
+              .get();
             _communityTickets = snap.docs.map(doc => ({
               id: doc.id,
               userId: doc.ref.parent.parent.id,

@@ -1,0 +1,38 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() { return request.auth != null; }
+    function isAdmin() {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    function isViewerOrAdmin() {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['viewer', 'admin'];
+    }
+
+    match /users/{userId} {
+      allow read:   if isSignedIn() && (request.auth.uid == userId || isViewerOrAdmin());
+      // New users may create their own doc, but cannot self-assign the admin role.
+      allow create: if request.auth.uid == userId
+                    && !( 'role' in request.resource.data && request.resource.data.role == 'admin' );
+      // A user can edit their own profile only if they DON'T change their role; admins can edit anyone.
+      allow update: if isAdmin()
+                    || ( request.auth.uid == userId
+                         && request.resource.data.role == resource.data.role );
+      allow delete: if isAdmin();
+
+      match /tickets/{ticketId} {
+        allow read:                 if isSignedIn() && (request.auth.uid == userId || isViewerOrAdmin());
+        allow create, update, delete: if request.auth.uid == userId;
+        allow delete, update:       if isAdmin();   // admin moderation + delete
+      }
+    }
+
+    // Community-wide reads (collectionGroup queries) for viewers and admins.
+    match /{path=**}/tickets/{ticketId} {
+      allow read: if isViewerOrAdmin();
+    }
+  }
+}
