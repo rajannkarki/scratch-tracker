@@ -187,8 +187,8 @@
     /* 2. Render Historical Table (wins only) */
     renderWinsTable(filteredWins);
 
-    /* 3. Render Chart — ALL tickets for this game, so non-winning numbers count too */
-    renderChart(gameTickets);
+    /* 3. Render the per-number frequency table — ALL tickets for this game */
+    renderFreqTable(gameTickets);
 
     /* 4. Update Recommendations */
     updateRecommendations(filteredWins, _gameFilter);
@@ -311,126 +311,50 @@
     }).join('');
   }
 
-  /* ── Render Chart.js Line Chart ───────────────────────────── */
-  function renderChart(wins) {
-    const ctx = document.getElementById('analytics-chart');
-    if (!ctx) return;
+  /* ── Render the per-number frequency table (Option C) ─────── */
+  function renderFreqTable(rows) {
+    const tbody = document.getElementById('freq-table-body');
+    if (!tbody) return;
 
-    // Aggregate statistics by ticket number
-    const dataMap = {};
-    for (const t of wins) {
+    // Group by ticket number + the amount it won, and count how often that combo appears.
+    const map = {};
+    for (const t of rows) {
       const num = (t.ticketNumber || '').trim();
       if (!num) continue;
-      if (!dataMap[num]) {
-        dataMap[num] = { freq: 0, amt: 0 };
-      }
-      dataMap[num].freq += 1;
-      dataMap[num].amt += parseFloat(t.winAmt) || 0;
+      const amt = parseFloat(t.winAmt) || 0;
+      const key = num + '|' + amt;
+      if (!map[key]) map[key] = { num, amt, count: 0 };
+      map[key].count += 1;
     }
 
-    // Sort ticket numbers numerically
-    const sortedKeys = Object.keys(dataMap).sort((a, b) => {
-      const na = parseInt(a, 10);
-      const nb = parseInt(b, 10);
-      if (isNaN(na) || isNaN(nb)) return a.localeCompare(b);
-      return na - nb;
-    });
+    const list = Object.values(map).sort((a, b) =>
+      b.count - a.count || b.amt - a.amt || a.num.localeCompare(b.num)
+    );
 
-    const labels = sortedKeys.map(k => '#' + k);
-    const dataValues = sortedKeys.map(k => _chartType === 'freq' ? dataMap[k].freq : dataMap[k].amt);
-
-    if (_chartInstance) {
-      _chartInstance.destroy();
-    }
-
-    if (labels.length === 0) {
-      // Draw empty placeholder text on canvas
-      const canvas = document.getElementById('analytics-chart');
-      const canvasCtx = canvas.getContext('2d');
-      canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
-      canvasCtx.fillStyle = '#777';
-      canvasCtx.font = '16px Inter';
-      canvasCtx.textAlign = 'center';
-      canvasCtx.fillText('Add tickets with numbers to see the frequency chart.', canvas.width / 2, canvas.height / 2);
+    if (list.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:20px;">No ticket numbers logged for this game yet.</td></tr>';
       return;
     }
 
-    const valueLabel = _chartType === 'freq' ? 'Ticket Frequency' : 'Total Amount Won ($)';
+    const maxC = Math.max(...list.map(r => r.count));
 
-    const chartCtx = ctx.getContext('2d');
-    const gradient = chartCtx.createLinearGradient(0, 0, 0, 400);
-    gradient.addColorStop(0, 'rgba(255, 215, 0, 0.30)');
-    gradient.addColorStop(1, 'transparent');
-
-    _chartInstance = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: valueLabel,
-          data: dataValues,
-          borderColor: '#FFD700',
-          backgroundColor: gradient,
-          borderWidth: 2.5,
-          tension: 0.4,
-          fill: true,
-          pointBackgroundColor: '#FFD700',
-          pointBorderColor: '#0a0a12',
-          pointBorderWidth: 2,
-          pointRadius: 4,
-          pointHoverRadius: 6,
-          pointHoverBackgroundColor: '#06D6A0',
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            display: false
-          },
-          tooltip: {
-            backgroundColor: '#181818',
-            titleColor: '#06D6A0',
-            titleFont: { family: 'Outfit', size: 14, weight: '700' },
-            bodyColor: '#F0F0F0',
-            bodyFont: { family: 'Inter', size: 13 },
-            borderColor: '#252525',
-            borderWidth: 1,
-            displayColors: false,
-            callbacks: {
-              label: function (context) {
-                const val = context.parsed.y;
-                return _chartType === 'freq' ? `logged ${val}×` : `$${val.toFixed(2)}`;
-              }
-            }
-          }
-        },
-        scales: {
-          x: {
-            grid: {
-              color: '#222'
-            },
-            ticks: {
-              color: '#777',
-              font: { family: 'Inter', size: 11, weight: '500' }
-            }
-          },
-          y: {
-            grid: {
-              color: '#222'
-            },
-            ticks: {
-              color: '#777',
-              font: { family: 'Inter', size: 11 },
-              callback: function (value) {
-                return _chartType === 'freq' ? value : '$' + value;
-              }
-            }
-          }
-        }
-      }
-    });
+    tbody.innerHTML = list.map(r => {
+      const w = Math.round((r.count / maxC) * 100);
+      const wonStr = r.amt > 0 ? '$' + fmtPrize(r.amt) : 'No win';
+      const wonStyle = r.amt > 0
+        ? "font-family:'Outfit',sans-serif;font-weight:700;color:var(--gold);"
+        : 'color:var(--muted);';
+      return `<tr>
+        <td><span class="ticket-badge">#${esc(r.num)}</span></td>
+        <td style="${wonStyle}">${wonStr}</td>
+        <td>
+          <div class="freq-cell">
+            <span class="freq-bar" style="width:${w}%"></span>
+            <span class="freq-count">${r.count}×</span>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
   }
 
   /* ── Hot Numbers ─────────────────────────────────────────── */
@@ -546,21 +470,6 @@
         updateDashboard();
       });
     }
-
-    /* Chart toggles */
-    document.getElementById('toggle-freq').addEventListener('click', (e) => {
-      _chartType = 'freq';
-      document.getElementById('toggle-freq').classList.add('active');
-      document.getElementById('toggle-amt').classList.remove('active');
-      updateDashboard();
-    });
-
-    document.getElementById('toggle-amt').addEventListener('click', (e) => {
-      _chartType = 'amt';
-      document.getElementById('toggle-amt').classList.add('active');
-      document.getElementById('toggle-freq').classList.remove('active');
-      updateDashboard();
-    });
 
     /* Profile Modal triggers */
     const badgeEl = document.getElementById('user-state-badge');

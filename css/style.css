@@ -962,3 +962,28 @@ h1, .nav-title, .auth-title, .form-title, .prizes-title,
   color: var(--muted); background: rgba(255,255,255,0.05);
   border: 1px dashed var(--border2); font-style: italic;
 }
+
+/* ── Ticket # Frequency table (per-game) ───────────────────── */
+.freq-table-wrap { max-height: 420px; overflow-y: auto; }
+.freq-table { width: 100%; border-collapse: collapse; }
+.freq-table th {
+  position: sticky; top: 0; background: var(--card);
+  font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--muted); text-align: left; padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.freq-table td {
+  padding: 9px 10px; font-size: 0.85rem; border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.freq-table tr:last-child td { border-bottom: none; }
+.freq-cell { display: flex; align-items: center; gap: 8px; min-width: 120px; }
+.freq-bar {
+  display: inline-block; height: 12px; border-radius: 4px;
+  background: var(--gold); min-width: 4px; max-width: 180px;
+  box-shadow: 0 0 8px rgba(255,215,0,0.25);
+}
+.freq-count {
+  font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 0.82rem;
+  color: var(--text); white-space: nowrap;
+}

@@ -137,7 +137,13 @@ const GAMES_BY_STATE = {
     { num:"2628", name:"Texas Loteria", close:null, price:3, prizes:[3,5,8,10,15,18,20,30,33,50,80,250,3000,50000] },
     { num:"2610", name:"Ultimate Millions", close:null, price:50, prizes:[75,100,150,250,500,2000,25000,1000000] },
     { num:"2590", name:"X", close:null, price:50, prizes:[75,100,150,200,500,1000,5000,20000,1000000] },
-    { num:"2728", name:"Yellowstone", close:null, price:5, prizes:[5,10,15,20,25,50,100,200,500,1000,5000,100000] }
+    { num:"2728", name:"Yellowstone", close:null, price:5, prizes:[5,10,15,20,25,50,100,200,500,1000,5000,100000] },
+    { num:"2765", name:"Loteria Azul", close:null, price:5, prizes:[5,10,15,20,50,100,200,500,5000,100000] },
+    { num:"2751", name:"Azulejos", close:null, price:5, prizes:[5,10,15,20,50,100,200,500,5000,100000] },
+    { num:"2743", name:"Super Loteria", close:null, price:5, prizes:[5,10,15,20,50,100,200,500,5000,100000] },
+    { num:"2699", name:"Reindeer Riches", close:null, price:10, prizes:[10,15,20,25,50,100,200,500,1000,5000,10000,250000] },
+    { num:"2667", name:"Bingo Times 20", close:null, price:5, prizes:[5,10,15,20,25,50,100,200,500,1000,5000,100000] },
+    { num:"2613", name:"200X The Cash", close:null, price:20, prizes:[20,30,40,50,100,200,400,500,1000,5000,20000,1000000] }
   ]
 };
 
