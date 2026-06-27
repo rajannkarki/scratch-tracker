@@ -78,27 +78,25 @@
     const noTicketsEl = document.getElementById('no-tickets-msg');
     const gridEl = document.getElementById('analytics-grid');
     const gameCardEl = document.getElementById('game-select-card');
+    const chartCardEl = document.getElementById('freq-chart-card');
+    const hotCardEl = document.getElementById('hot-numbers-card');
 
-    if (numbered.length === 0) {
-      if (noTicketsEl) {
-        noTicketsEl.querySelector('p').textContent = _currentScope === 'personal'
-          ? 'No ticket numbers logged yet. Start recording your scratch-offs (with their ticket numbers) in the Tracker to unlock analytics!'
-          : 'No community ticket numbers logged yet for this state.';
-        noTicketsEl.style.display = '';
-        const goBtn = noTicketsEl.querySelector('.add-btn');
-        if (goBtn) goBtn.style.display = _currentScope === 'personal' ? 'inline-block' : 'none';
-      }
-      if (gridEl) gridEl.style.display = 'none';
-      if (gameCardEl) gameCardEl.style.display = 'none';
-    } else {
-      if (noTicketsEl) noTicketsEl.style.display = 'none';
-      if (gridEl) gridEl.style.display = '';
-      if (gameCardEl) gameCardEl.style.display = '';
+    const show = numbered.length > 0;
+    if (!show && noTicketsEl) {
+      noTicketsEl.querySelector('p').textContent = _currentScope === 'personal'
+        ? 'No ticket numbers logged yet. Start recording your scratch-offs (with their ticket numbers) in the Tracker to unlock analytics!'
+        : 'No community ticket numbers logged yet for this state.';
+      const goBtn = noTicketsEl.querySelector('.add-btn');
+      if (goBtn) goBtn.style.display = _currentScope === 'personal' ? 'inline-block' : 'none';
     }
+    if (noTicketsEl) noTicketsEl.style.display = show ? 'none' : '';
+    if (gridEl) gridEl.style.display = show ? '' : 'none';
+    if (gameCardEl) gameCardEl.style.display = show ? '' : 'none';
+    if (chartCardEl) chartCardEl.style.display = show ? '' : 'none';
+    if (hotCardEl) hotCardEl.style.display = show ? '' : 'none';
 
     buildGameBoxes();
     updateDashboard();
-    buildHotNumbers(tickets);
   }
 
   function buildGameBoxes() {
@@ -144,53 +142,31 @@
   function updateDashboard() {
     const tickets = getActiveTickets();
 
-    /* A single game is ALWAYS selected; the pattern is per-game. */
+    /* ── Top metric cards = OVERALL totals across ALL games (a summary that
+          does NOT change when you switch the selected game). ── */
+    const allWins = tickets.filter(t => t.outcome === 'win');
+    const overallWon = allWins.reduce((sum, t) => sum + (t.winAmt || 0), 0);
+    const overallMax = allWins.length ? Math.max(...allWins.map(t => parseFloat(t.winAmt) || 0)) : 0;
+    document.getElementById('m-wins').textContent = allWins.length;
+    document.getElementById('m-lucky').textContent = tickets.length;   // total tickets logged
+    document.getElementById('m-max').textContent = fmt(overallMax);
+    document.getElementById('m-total-won').textContent = fmt(overallWon);
+
+    /* ── Everything else is for the SELECTED game only. ── */
     const gameTickets = _gameFilter ? tickets.filter(t => t.gameNum === _gameFilter) : [];
     const filteredWins = gameTickets.filter(t => t.outcome === 'win');
 
-    /* Update chart label with the selected game name */
+    const sel = gameTickets[0] || tickets.find(t => t.gameNum === _gameFilter);
+    const selName = sel ? '· ' + sel.gameName : '';
     const labelEl = document.getElementById('chart-game-label');
-    if (labelEl) {
-      const sel = gameTickets[0] || tickets.find(t => t.gameNum === _gameFilter);
-      labelEl.textContent = sel ? '· ' + sel.gameName : '';
-    }
+    if (labelEl) labelEl.textContent = selName;
+    const hotLabel = document.getElementById('hot-game-label');
+    if (hotLabel) hotLabel.textContent = selName;
 
-    /* 1. Calculate Metrics */
-    const totalWins = filteredWins.length;
-    const totalCashWon = filteredWins.reduce((sum, t) => sum + (t.winAmt || 0), 0);
-    const maxWin = totalWins ? Math.max(...filteredWins.map(t => parseFloat(t.winAmt) || 0)) : 0;
-
-    // Find luckiest ticket number (most occurrences among winning tickets)
-    let luckyNum = '—';
-    let maxOccur = 0;
-    const frequencies = {};
-
-    for (const t of filteredWins) {
-      const num = (t.ticketNumber || '').trim();
-      if (!num) continue;
-      frequencies[num] = (frequencies[num] || 0) + 1;
-      if (frequencies[num] > maxOccur) {
-        maxOccur = frequencies[num];
-        luckyNum = '#' + num;
-      }
-    }
-    if (luckyNum !== '—' && maxOccur > 1) {
-      luckyNum += ` (${maxOccur}x)`;
-    }
-
-    /* Render Metrics */
-    document.getElementById('m-wins').textContent = totalWins;
-    document.getElementById('m-lucky').textContent = luckyNum;
-    document.getElementById('m-max').textContent = fmt(maxWin);
-    document.getElementById('m-total-won').textContent = fmt(totalCashWon);
-
-    /* 2. Render Historical Table (wins only) */
     renderWinsTable(filteredWins);
-
-    /* 3. Render the per-number frequency table — ALL tickets for this game */
     renderFreqTable(gameTickets);
-
-    /* 4. Update Recommendations */
+    renderChart(gameTickets);
+    buildHotNumbers(gameTickets);
     updateRecommendations(filteredWins, _gameFilter);
   }
 
@@ -311,24 +287,25 @@
     }).join('');
   }
 
-  /* ── Render the per-number frequency table (Option C) ─────── */
+  /* ── Render the per-number breakdown table — ONE row per ticket number ── */
   function renderFreqTable(rows) {
     const tbody = document.getElementById('freq-table-body');
     if (!tbody) return;
 
-    // Group by ticket number + the amount it won, and count how often that combo appears.
-    const map = {};
+    // One row per ticket number. Track how many times it was seen, and a
+    // breakdown of the amounts it hit (so $40/$50/$100 collapse into one row).
+    const byNum = {};
     for (const t of rows) {
       const num = (t.ticketNumber || '').trim();
       if (!num) continue;
       const amt = parseFloat(t.winAmt) || 0;
-      const key = num + '|' + amt;
-      if (!map[key]) map[key] = { num, amt, count: 0 };
-      map[key].count += 1;
+      if (!byNum[num]) byNum[num] = { num, total: 0, amts: {} };
+      byNum[num].total += 1;
+      byNum[num].amts[amt] = (byNum[num].amts[amt] || 0) + 1;
     }
 
-    const list = Object.values(map).sort((a, b) =>
-      b.count - a.count || b.amt - a.amt || a.num.localeCompare(b.num)
+    const list = Object.values(byNum).sort((a, b) =>
+      b.total - a.total || a.num.localeCompare(b.num)
     );
 
     if (list.length === 0) {
@@ -336,25 +313,74 @@
       return;
     }
 
-    const maxC = Math.max(...list.map(r => r.count));
+    const maxC = Math.max(...list.map(r => r.total));
 
     tbody.innerHTML = list.map(r => {
-      const w = Math.round((r.count / maxC) * 100);
-      const wonStr = r.amt > 0 ? '$' + fmtPrize(r.amt) : 'No win';
-      const wonStyle = r.amt > 0
-        ? "font-family:'Outfit',sans-serif;font-weight:700;color:var(--gold);"
-        : 'color:var(--muted);';
+      const w = Math.round((r.total / maxC) * 100);
+      const badges = Object.keys(r.amts).map(Number).sort((a, b) => b - a).map(amt => {
+        const cnt = r.amts[amt];
+        const label = amt > 0 ? '$' + fmtPrize(amt) : 'no win';
+        const cls = amt > 0 ? 'pb-win' : 'pb-loss';
+        return `<span class="prize-badge ${cls}">${label}${cnt > 1 ? ' ×' + cnt : ''}</span>`;
+      }).join('');
       return `<tr>
         <td><span class="ticket-badge">#${esc(r.num)}</span></td>
-        <td style="${wonStyle}">${wonStr}</td>
+        <td><div class="prize-badges">${badges}</div></td>
         <td>
           <div class="freq-cell">
             <span class="freq-bar" style="width:${w}%"></span>
-            <span class="freq-count">${r.count}×</span>
+            <span class="freq-count">${r.total}×</span>
           </div>
         </td>
       </tr>`;
     }).join('');
+  }
+
+  /* ── Render the frequency bar chart — one bar per ticket number ───── */
+  function renderChart(rows) {
+    const ctx = document.getElementById('analytics-chart');
+    if (!ctx || typeof Chart === 'undefined') return;
+
+    const counts = {};
+    for (const t of rows) {
+      const num = (t.ticketNumber || '').trim();
+      if (!num) continue;
+      counts[num] = (counts[num] || 0) + 1;
+    }
+
+    const keys = Object.keys(counts).sort((a, b) => {
+      const na = parseInt(a, 10), nb = parseInt(b, 10);
+      if (isNaN(na) || isNaN(nb)) return a.localeCompare(b);
+      return na - nb;
+    });
+    const labels = keys.map(k => '#' + k);
+    const data = keys.map(k => counts[k]);
+
+    if (_chartInstance) _chartInstance.destroy();
+    if (keys.length === 0) return;
+
+    const maxV = Math.max(...data);
+    const colors = data.map(v => v === maxV ? '#FFD700' : 'rgba(255,215,0,0.4)');
+
+    _chartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: { labels, datasets: [{ data, backgroundColor: colors, borderColor: '#FFD700', borderWidth: 1, borderRadius: 4, maxBarThickness: 46 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#181818', titleColor: '#FFD700', bodyColor: '#F0F0F0',
+            displayColors: false,
+            callbacks: { label: c => `seen ${c.parsed.y}×` }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: '#888', font: { size: 11 }, autoSkip: true, maxRotation: 0 } },
+          y: { grid: { color: '#222' }, ticks: { color: '#888', font: { size: 11 }, stepSize: 1, precision: 0 }, title: { display: true, text: 'times seen', color: '#888', font: { size: 11 } } }
+        }
+      }
+    });
   }
 
   /* ── Hot Numbers ─────────────────────────────────────────── */

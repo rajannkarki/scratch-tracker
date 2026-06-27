@@ -302,45 +302,87 @@
     const labelEl = document.getElementById('chart-game-label');
     if (labelEl) labelEl.textContent = rows[0] ? '· ' + rows[0].gameName : '';
 
-    // Group by ticket number + amount won, and count how often that combo appears.
-    const map = {};
+    // One row per ticket number, with a breakdown of the amounts it hit.
+    const byNum = {};
     for (const t of rows) {
       const num = (t.ticketNumber || '').trim();
       if (!num) continue;
       const amt = parseFloat(t.winAmt) || 0;
-      const key = num + '|' + amt;
-      if (!map[key]) map[key] = { num, amt, count: 0 };
-      map[key].count += 1;
+      if (!byNum[num]) byNum[num] = { num, total: 0, amts: {} };
+      byNum[num].total += 1;
+      byNum[num].amts[amt] = (byNum[num].amts[amt] || 0) + 1;
     }
 
-    const list = Object.values(map).sort((a, b) =>
-      b.count - a.count || b.amt - a.amt || a.num.localeCompare(b.num)
+    const list = Object.values(byNum).sort((a, b) =>
+      b.total - a.total || a.num.localeCompare(b.num)
     );
 
     if (list.length === 0) {
       tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:20px;">No community ticket numbers for this game yet.</td></tr>';
-      return;
+    } else {
+      const maxC = Math.max(...list.map(r => r.total));
+      tbody.innerHTML = list.map(r => {
+        const w = Math.round((r.total / maxC) * 100);
+        const badges = Object.keys(r.amts).map(Number).sort((a, b) => b - a).map(amt => {
+          const cnt = r.amts[amt];
+          const label = amt > 0 ? '$' + fmtPrize(amt) : 'no win';
+          const cls = amt > 0 ? 'pb-win' : 'pb-loss';
+          return `<span class="prize-badge ${cls}">${label}${cnt > 1 ? ' ×' + cnt : ''}</span>`;
+        }).join('');
+        return `<tr>
+          <td><span class="ticket-badge">#${esc(r.num)}</span></td>
+          <td><div class="prize-badges">${badges}</div></td>
+          <td>
+            <div class="freq-cell">
+              <span class="freq-bar" style="width:${w}%"></span>
+              <span class="freq-count">${r.total}×</span>
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
     }
 
-    const maxC = Math.max(...list.map(r => r.count));
+    renderCommunityBar(list);
+  }
 
-    tbody.innerHTML = list.map(r => {
-      const w = Math.round((r.count / maxC) * 100);
-      const wonStr = r.amt > 0 ? '$' + fmtPrize(r.amt) : 'No win';
-      const wonStyle = r.amt > 0
-        ? "font-family:'Outfit',sans-serif;font-weight:700;color:var(--gold);"
-        : 'color:var(--muted);';
-      return `<tr>
-        <td><span class="ticket-badge">#${esc(r.num)}</span></td>
-        <td style="${wonStyle}">${wonStr}</td>
-        <td>
-          <div class="freq-cell">
-            <span class="freq-bar" style="width:${w}%"></span>
-            <span class="freq-count">${r.count}×</span>
-          </div>
-        </td>
-      </tr>`;
-    }).join('');
+  /* ── Community frequency bar chart (one bar per ticket number) ───── */
+  function renderCommunityBar(list) {
+    const ctx = document.getElementById('community-chart');
+    if (!ctx || typeof Chart === 'undefined') return;
+
+    const sorted = list.slice().sort((a, b) => {
+      const na = parseInt(a.num, 10), nb = parseInt(b.num, 10);
+      if (isNaN(na) || isNaN(nb)) return a.num.localeCompare(b.num);
+      return na - nb;
+    });
+    const labels = sorted.map(r => '#' + r.num);
+    const data = sorted.map(r => r.total);
+
+    if (_chartInstance) _chartInstance.destroy();
+    if (sorted.length === 0) return;
+
+    const maxV = Math.max(...data);
+    const colors = data.map(v => v === maxV ? '#FFD700' : 'rgba(255,215,0,0.4)');
+
+    _chartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: { labels, datasets: [{ data, backgroundColor: colors, borderColor: '#FFD700', borderWidth: 1, borderRadius: 4, maxBarThickness: 46 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#181818', titleColor: '#FFD700', bodyColor: '#F0F0F0',
+            displayColors: false,
+            callbacks: { label: c => `seen ${c.parsed.y}×` }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: '#888', font: { size: 11 }, autoSkip: true, maxRotation: 0 } },
+          y: { grid: { color: '#222' }, ticks: { color: '#888', font: { size: 11 }, stepSize: 1, precision: 0 }, title: { display: true, text: 'times seen', color: '#888', font: { size: 11 } } }
+        }
+      }
+    });
   }
 
   /* ── Render Community Wins Table (selected game) ──────────── */

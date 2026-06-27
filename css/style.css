@@ -987,3 +987,16 @@ h1, .nav-title, .auth-title, .form-title, .prizes-title,
   font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 0.82rem;
   color: var(--text); white-space: nowrap;
 }
+.prize-badges { display: flex; flex-wrap: wrap; gap: 4px; }
+.prize-badge {
+  font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 0.72rem;
+  padding: 2px 7px; border-radius: 6px; white-space: nowrap;
+}
+.prize-badge.pb-win {
+  color: var(--gold); background: rgba(255,215,0,0.08);
+  border: 1px solid rgba(255,215,0,0.3);
+}
+.prize-badge.pb-loss {
+  color: var(--muted); background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border2);
+}
