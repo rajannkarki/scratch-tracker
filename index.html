@@ -6,8 +6,12 @@
   <title>The Pattern — Scratch-Off Ticket Number Tracker</title>
   <meta name="description" content="The Pattern — Track your scratch-off lottery tickets, record winning numbers, and analyze your spending across all US states.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none'%3E%3Ccircle cx='26' cy='26' r='18' stroke='%23FFD700' stroke-width='3' fill='none'/%3E%3Cline x1='39' y1='39' x2='56' y2='56' stroke='%23FFD700' stroke-width='4' stroke-linecap='round'/%3E%3Ctext x='26' y='31' text-anchor='middle' font-family='Outfit' font-weight='800' font-size='16' fill='%2300FF88'%3E%23%3C/text%3E%3C/svg%3E">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#080b14">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}</script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=11">
+  <link rel="stylesheet" href="css/style.css?v=12">
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1375474490596764"
      crossorigin="anonymous"></script>
 </head>
@@ -165,6 +169,12 @@
         </div>
         <div id="community-tip" style="display:none"></div>
 
+        <div class="photo-row" id="photo-row">
+          <label class="photo-btn" for="ticket-photo">📷 Add ticket photo <span style="opacity:0.55;font-weight:400;">(optional)</span></label>
+          <input type="file" id="ticket-photo" accept="image/*" capture="environment" style="display:none;">
+          <div id="photo-preview" class="photo-preview"></div>
+        </div>
+
         <div class="date-row">
           <label>Date scratched:</label>
           <input class="date-input" type="date" id="f-date">
@@ -222,17 +232,22 @@
 
   <div class="toast" id="toast"></div>
 
+  <!-- Photo lightbox -->
+  <div id="photo-lightbox" class="photo-lightbox" style="display:none;">
+    <img id="photo-lightbox-img" src="" alt="Ticket photo">
+  </div>
+
   <!-- Firebase SDK (compat) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
   <!-- App Scripts (order matters) -->
-  <script src="js/firebase-config.js?v=11"></script>
-  <script src="js/games.js?v=11"></script>
-  <script src="js/auth.js?v=11"></script>
-  <script src="js/tracker.js?v=11"></script>
-  <script src="js/ui.js?v=11"></script>
-  <script src="js/app.js?v=11"></script>
+  <script src="js/firebase-config.js?v=12"></script>
+  <script src="js/games.js?v=12"></script>
+  <script src="js/auth.js?v=12"></script>
+  <script src="js/tracker.js?v=12"></script>
+  <script src="js/ui.js?v=12"></script>
+  <script src="js/app.js?v=12"></script>
 </body>
 </html>

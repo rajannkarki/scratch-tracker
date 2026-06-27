@@ -32,5 +32,11 @@ if (isFirebaseConfigured()) {
 /** Firestore reference (null when Firebase is not configured) */
 const db = isFirebaseConfigured() ? firebase.firestore() : null;
 
+/* Offline support: cache data locally so the app works without a connection
+   and queues writes until it's back online. Safe to fail (e.g. multiple tabs). */
+if (db) {
+  db.enablePersistence({ synchronizeTabs: true }).catch(function () {});
+}
+
 /** Auth reference (null when Firebase is not configured) */
 const auth = isFirebaseConfigured() ? firebase.auth() : null;

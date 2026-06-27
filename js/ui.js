@@ -8,6 +8,7 @@ const UI = {
   selectedGame: null,
   selectedPrize: null,
   dropFocusIdx: -1,
+  _pendingPhoto: null,
 
   /* ── Game picker methods ────────────────────────────────── */
   filterGames(query) {
@@ -174,8 +175,31 @@ const UI = {
     document.getElementById('custom-amt').value = '';
     document.getElementById('ticket-num').value = '';
     UI.resetNoNumber();
+    UI._clearPhoto();
     document.getElementById('ticket-num-section').style.display = 'none';
     UI.filterGames('');
+  },
+
+  /* Clear the entry fields but KEEP the same game selected — for one-tap re-log. */
+  resetForNextTicket() {
+    UI.selectedPrize = null;
+    document.querySelectorAll('#prize-chips .chip').forEach(c => c.classList.remove('selected'));
+    document.getElementById('custom-amt').value = '';
+    document.getElementById('ticket-num').value = '';
+    UI.resetNoNumber();
+    UI._clearPhoto();
+    const tip = document.getElementById('community-tip');
+    if (tip) tip.style.display = 'none';
+    const numInput = document.getElementById('ticket-num');
+    if (numInput) numInput.focus();
+  },
+
+  _clearPhoto() {
+    UI._pendingPhoto = null;
+    const pv = document.getElementById('photo-preview');
+    if (pv) pv.innerHTML = '';
+    const pf = document.getElementById('ticket-photo');
+    if (pf) pf.value = '';
   },
 
   buildPrizeChips() {
@@ -300,6 +324,10 @@ const UI = {
         ? `<span class="ticket-badge">#${UI.esc(t.ticketNumber)}</span>`
         : `<span class="ticket-badge no-num">no #</span>`;
 
+      const photoThumb = t.photo
+        ? `<img src="${t.photo}" class="rec-photo" alt="ticket photo" title="View photo">`
+        : '';
+
       return `<div class="rec-card">
         <div class="rec-bar ${t.outcome}"></div>
         <div class="rec-info">
@@ -311,6 +339,7 @@ const UI = {
             ${ticketBadge}
           </div>
         </div>
+        ${photoThumb}
         <div class="rec-amt">
           <div class="amt-val ${t.outcome}">${isWin ? '+' + UI.fmt(t.winAmt) : '—'}</div>
           <div class="amt-cost">Cost: ${UI.fmt(t.price)}</div>

@@ -1004,3 +1004,53 @@ h1, .nav-title, .auth-title, .form-title, .prizes-title,
 /* Net P/L metric coloring */
 .metric-val.g { color: var(--green); }
 .metric-val.r { color: var(--red); }
+
+/* ── Per-game performance tiles (win-rate / ROI) ───────────── */
+.perf-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  gap: 10px;
+}
+.perf-tile {
+  background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 10px; text-align: center;
+}
+.perf-val { font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 1.1rem; color: var(--gold); }
+.perf-val.g { color: var(--green); }
+.perf-val.r { color: var(--red); }
+.perf-lbl {
+  font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--muted); margin-top: 4px;
+}
+
+/* ── Ticket photo ──────────────────────────────────────────── */
+.photo-row { margin: 4px 0 12px; display: flex; flex-direction: column; gap: 8px; }
+.photo-btn {
+  display: inline-flex; align-items: center; gap: 6px; align-self: flex-start;
+  padding: 8px 14px; border-radius: 10px; cursor: pointer;
+  background: rgba(255,255,255,0.04); border: 1px dashed var(--border2);
+  color: var(--text); font-size: 0.85rem; transition: all var(--transition);
+}
+.photo-btn:hover { border-color: var(--gold); color: var(--gold); }
+.photo-preview { position: relative; display: inline-block; }
+.photo-preview:empty { display: none; }
+.photo-thumb {
+  max-width: 120px; max-height: 120px; border-radius: 10px;
+  border: 1px solid var(--border2); display: block; object-fit: cover;
+}
+.photo-remove {
+  position: absolute; top: -8px; right: -8px; width: 22px; height: 22px;
+  border-radius: 50%; border: none; cursor: pointer;
+  background: var(--red); color: #fff; font-size: 0.8rem; line-height: 1;
+}
+.rec-photo {
+  width: 42px; height: 42px; border-radius: 8px; object-fit: cover;
+  border: 1px solid var(--border2); cursor: pointer; flex-shrink: 0;
+  transition: transform var(--transition);
+}
+.rec-photo:hover { transform: scale(1.05); border-color: var(--gold); }
+.photo-lightbox {
+  position: fixed; inset: 0; z-index: 2000; background: rgba(0,0,0,0.85);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  cursor: zoom-out;
+}
+.photo-lightbox img { max-width: 95%; max-height: 95%; border-radius: 10px; }

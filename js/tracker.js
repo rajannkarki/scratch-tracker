@@ -57,6 +57,7 @@ const Tracker = {
       winAmt:       ticketData.winAmt,
       outcome:      ticketData.outcome,       // 'win' | 'loss'
       ticketNumber: hasNumber ? ticketData.ticketNumber.trim() : "",
+      photo:        ticketData.photo || "",     // small compressed JPEG data URL, or ""
       date:         ticketData.date,           // 'YYYY-MM-DD'
       state:        Auth.currentUser.state || "TX",
       // Tickets WITH a number go to the moderation queue for community curation.

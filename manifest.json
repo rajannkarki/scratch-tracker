@@ -1,0 +1,15 @@
+{
+  "name": "The Pattern — Scratch-Off Tracker",
+  "short_name": "The Pattern",
+  "description": "Track scratch-off ticket numbers, find the pattern, buy smarter.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#080b14",
+  "theme_color": "#080b14",
+  "icons": [
+    { "src": "icon.svg", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

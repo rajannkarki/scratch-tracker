@@ -57,6 +57,30 @@
     return new Date().toISOString().split('T')[0];
   }
 
+  /* ── Image compression — shrink the photo to a small JPEG data URL
+        so it fits comfortably inside a Firestore document. ── */
+  function compressImage(file, maxDim, quality) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+          let w = img.width, h = img.height;
+          if (w > h && w > maxDim) { h = Math.round(h * maxDim / w); w = maxDim; }
+          else if (h >= w && h > maxDim) { w = Math.round(w * maxDim / h); h = maxDim; }
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = reject;
+        img.src = ev.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
   /* ── Auth events ─────────────────────────────────────────── */
   function wireAuthEvents() {
     /* Form submit */
@@ -206,6 +230,47 @@
       noNumChk.addEventListener('change', () => UI.toggleNoNumber(noNumChk.checked));
     }
 
+    /* Ticket photo: compress on selection + show a removable preview */
+    const photoInput = document.getElementById('ticket-photo');
+    if (photoInput) {
+      photoInput.addEventListener('change', async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        try {
+          UI._pendingPhoto = await compressImage(file, 800, 0.5);
+          const pv = document.getElementById('photo-preview');
+          if (pv) pv.innerHTML = '<img src="' + UI._pendingPhoto + '" class="photo-thumb" alt="preview"><button type="button" class="photo-remove" id="photo-remove" title="Remove">✕</button>';
+        } catch (err) {
+          UI.showToast('Could not read that image.', 'e');
+        }
+      });
+    }
+
+    const photoPreview = document.getElementById('photo-preview');
+    if (photoPreview) {
+      photoPreview.addEventListener('click', (e) => {
+        if (e.target.id === 'photo-remove') {
+          UI._pendingPhoto = null;
+          photoPreview.innerHTML = '';
+          if (photoInput) photoInput.value = '';
+        }
+      });
+    }
+
+    /* Photo thumbnails in the records list open a lightbox */
+    document.getElementById('records').addEventListener('click', (e) => {
+      const thumb = e.target.closest('.rec-photo');
+      if (!thumb) return;
+      const lb = document.getElementById('photo-lightbox');
+      const img = document.getElementById('photo-lightbox-img');
+      if (lb && img) { img.src = thumb.src; lb.style.display = 'flex'; }
+    });
+
+    const lightbox = document.getElementById('photo-lightbox');
+    if (lightbox) {
+      lightbox.addEventListener('click', () => { lightbox.style.display = 'none'; });
+    }
+
     /* Add ticket button */
     document.getElementById('add-btn').addEventListener('click', async () => {
       if (!UI.selectedGame) {
@@ -253,21 +318,22 @@
         winAmt: isNaN(winAmt) ? 0 : winAmt,
         outcome: isWin ? 'win' : 'loss',
         ticketNumber: ticketNum,
-        date: date
+        date: date,
+        photo: UI._pendingPhoto || ''
       };
+
+      const sameGameName = UI.selectedGame.name;
 
       try {
         document.getElementById('add-btn').disabled = true;
         await Tracker.addTicket(Auth.currentUser.uid, ticketData);
         UI.renderAll();
         UI.showToast(
-          isWin ? `🏆 +${UI.fmt(winAmt)} recorded!` : '❌ Loss logged.',
+          (isWin ? `🏆 +${UI.fmt(winAmt)} logged! ` : '❌ Loss logged. ') + 'Ready for the next ' + sameGameName + ' ticket.',
           isWin ? 's' : ''
         );
-        UI.resetGame();
-        const tipEl = document.getElementById('community-tip');
-        if (tipEl) tipEl.style.display = 'none';
-        document.getElementById('custom-amt').value = '';
+        // One-tap re-log: keep the same game selected, just clear the entry fields.
+        UI.resetForNextTicket();
       } catch (err) {
         console.error('Failed to add ticket:', err);
         UI.showToast('Failed to save ticket. Try again.', 'e');

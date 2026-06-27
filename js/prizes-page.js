@@ -172,99 +172,44 @@
     renderWinsTable(filteredWins);
     renderFreqTable(gameTickets);
     buildHotNumbers(gameTickets);
-    updateRecommendations(filteredWins, _gameFilter);
+    renderGamePerf(gameTickets, filteredWins);
   }
 
-  /* ── Update Recommendations ──────────────────────────────── */
-  function updateRecommendations(wins, gameNum) {
-    const recCard = document.getElementById('smart-recommendations-card');
-    const recContent = document.getElementById('recommendations-content');
-    if (!recCard || !recContent) return;
+  /* ── Per-game win-rate / ROI ─────────────────────────────── */
+  function renderGamePerf(gameTickets, wins) {
+    const card = document.getElementById('game-perf-card');
+    const grid = document.getElementById('perf-grid');
+    if (!card || !grid) return;
 
-    // Only meaningful for a single selected game.
-    if (!gameNum || wins.length === 0) {
-      recCard.style.display = 'none';
+    if (!_gameFilter || gameTickets.length === 0) {
+      card.style.display = 'none';
       return;
     }
 
-    const gameName = wins[0] ? wins[0].gameName : 'this game';
+    const played = gameTickets.length;
+    const winCount = wins.length;
+    const winRate = played ? (winCount / played * 100) : 0;
+    const spent = gameTickets.reduce((s, t) => s + (t.price || 0), 0);
+    const won = wins.reduce((s, t) => s + (parseFloat(t.winAmt) || 0), 0);
+    const net = won - spent;
+    const roiPct = spent > 0 ? (net / spent * 100) : 0;
 
-    /* Build per-ticket-number stats: which prize tier each number tends to hit. */
-    const stats = {};
-    let totalWins = 0;
-    for (const t of wins) {
-      const num = (t.ticketNumber || '').trim();
-      if (!num) continue;
-      const amt = parseFloat(t.winAmt) || 0;
-      if (!stats[num]) stats[num] = { freq: 0, totalAmt: 0, prizes: {} };
-      stats[num].freq += 1;
-      stats[num].totalAmt += amt;
-      stats[num].prizes[amt] = (stats[num].prizes[amt] || 0) + 1;
-      totalWins += 1;
-    }
+    const label = document.getElementById('perf-game-label');
+    if (label) label.textContent = gameTickets[0] ? '· ' + gameTickets[0].gameName : '';
 
-    const nums = Object.keys(stats);
-    if (totalWins === 0 || nums.length === 0) {
-      recCard.style.display = 'none';
-      return;
-    }
-
-    /* For each number, find its dominant prize tier and how consistent it is. */
-    const patterns = nums.map(num => {
-      const s = stats[num];
-      let domPrize = 0, domCount = 0;
-      for (const [amt, c] of Object.entries(s.prizes)) {
-        if (c > domCount) { domCount = c; domPrize = parseFloat(amt); }
-      }
-      const consistency = domCount / s.freq;            // how reliably it hits the same prize
-      const share = s.freq / totalWins;                 // share of all wins for this game
-      // Score rewards numbers seen often AND consistently hitting the same prize.
-      const score = s.freq * consistency;
-      return { num, freq: s.freq, domPrize, domCount, consistency, share, totalAmt: s.totalAmt, score };
-    }).sort((a, b) => b.score - a.score);
-
-    function confLabel(freq) {
-      if (freq >= 5) return ['conf-high', 'High confidence'];
-      if (freq >= 3) return ['conf-med', 'Medium confidence'];
-      return ['conf-low', 'Low — small sample'];
-    }
-
-    const top = patterns.slice(0, 3);
-    const best = top[0];
-
-    let rows = top.map((p, i) => {
-      const [cls, lbl] = confLabel(p.freq);
-      const consistencyPct = Math.round(p.consistency * 100);
-      const prizeStr = p.domPrize > 0 ? '$' + fmtPrize(p.domPrize) : 'a non-cash result';
-      return `
-        <div class="rec-pattern${i === 0 ? ' best' : ''}">
-          <div class="rec-rank">${i + 1}</div>
-          <div class="rec-num-badge">#${esc(p.num)}</div>
-          <div class="rec-detail">
-            Hits <span class="rec-prize">${prizeStr}</span> in
-            <strong>${p.domCount} of ${p.freq}</strong> logged wins
-            (<strong>${consistencyPct}%</strong> consistency).
-          </div>
-          <span class="conf-chip ${cls}">${lbl}</span>
-        </div>`;
-    }).join('');
-
-    const bestPrizeStr = best.domPrize > 0 ? '$' + fmtPrize(best.domPrize) : 'its usual result';
-    const sampleNote = best.freq < 3
-      ? 'Sample is still small — log more wins for this game to confirm the pattern.'
-      : `Across ${totalWins} logged win${totalWins === 1 ? '' : 's'} for this game, this is the clearest repeat.`;
-
-    recContent.innerHTML = `
-      <p style="margin-bottom:12px;">Strongest ticket-number patterns for <strong>${esc(gameName)}</strong>:</p>
-      ${rows}
-      <p style="font-weight:500; color: var(--gold); background: rgba(255,215,0,0.04); border:1px dashed rgba(255,215,0,0.25); padding:10px 14px; border-radius:8px; margin-top:6px;">
-        💡 <strong>Watch for ticket #${esc(best.num)}</strong> — it has been your most reliable hit (${bestPrizeStr}). ${sampleNote}
-      </p>
-      <p class="rec-disclaimer">
-        ⚠️ This reflects only the tickets logged here, not the lottery's real odds. Scratch-off outcomes are random and independent — past results don't guarantee future wins. Play for fun, within a budget.
-      </p>
-    `;
-    recCard.style.display = '';
+    const netCls = net >= 0 ? 'g' : 'r';
+    const tiles = [
+      { v: String(played), l: 'Played' },
+      { v: winCount + ' · ' + winRate.toFixed(0) + '%', l: 'Wins (rate)' },
+      { v: fmt(spent), l: 'Spent' },
+      { v: fmt(won), l: 'Won' },
+      { v: (net >= 0 ? '+' : '-') + fmt(Math.abs(net)), l: 'Net', cls: netCls },
+      { v: (roiPct >= 0 ? '+' : '') + roiPct.toFixed(0) + '%', l: 'ROI', cls: netCls }
+    ];
+    grid.innerHTML = tiles.map(t =>
+      `<div class="perf-tile"><div class="perf-val ${t.cls || ''}">${t.v}</div><div class="perf-lbl">${t.l}</div></div>`
+    ).join('');
+    card.style.display = '';
   }
 
   /* ── Render wins historical list ─────────────────────────── */
