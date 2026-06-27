@@ -269,23 +269,38 @@
 
     tbody.innerHTML = list.map(r => {
       const w = Math.round((r.total / maxC) * 100);
-      const badges = Object.keys(r.amts).map(Number).sort((a, b) => b - a).map(amt => {
+      const amtsDesc = Object.keys(r.amts).map(Number).sort((a, b) => b - a);
+      // Colored prize badges (color = prize tier)
+      const badges = amtsDesc.map(amt => {
         const cnt = r.amts[amt];
         const label = amt > 0 ? '$' + fmtPrize(amt) : 'no win';
-        const cls = amt > 0 ? 'pb-win' : 'pb-loss';
-        return `<span class="prize-badge ${cls}">${label}${cnt > 1 ? ' ×' + cnt : ''}</span>`;
+        const c = prizeColor(amt);
+        return `<span class="prize-badge" style="color:${c};border-color:${c}66;background:${c}1f;">${label}${cnt > 1 ? ' ×' + cnt : ''}</span>`;
       }).join('');
+      // Stacked frequency bar: total length = relative frequency, segments = outcome mix
+      const segs = amtsDesc.map(amt =>
+        `<span style="width:${(r.amts[amt] / r.total) * 100}%;background:${prizeColor(amt)};"></span>`
+      ).join('');
       return `<tr>
         <td><span class="ticket-badge">#${esc(r.num)}</span></td>
         <td><div class="prize-badges">${badges}</div></td>
         <td>
           <div class="freq-cell">
-            <span class="freq-bar" style="width:${w}%"></span>
+            <span class="freq-bar-stack" style="width:${w}%">${segs}</span>
             <span class="freq-count">${r.total}×</span>
           </div>
         </td>
       </tr>`;
     }).join('');
+  }
+
+  /* Color for a prize tier — shared by badges and the stacked frequency bar. */
+  function prizeColor(amt) {
+    if (amt <= 0)    return '#EF476F';  // no win — red
+    if (amt < 25)    return '#1FB774';  // small — green
+    if (amt < 100)   return '#2A8CF0';  // medium — blue
+    if (amt < 1000)  return '#FFC02E';  // large — gold
+    return '#C061F7';                   // jackpot — purple
   }
 
   /* ── Hot Numbers ─────────────────────────────────────────── */
