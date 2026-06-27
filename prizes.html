@@ -7,9 +7,7 @@
   <meta name="description" content="The Pattern — Browse scratch-off lottery winning numbers, frequencies, payouts, and interactive win probability charts.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none'%3E%3Ccircle cx='26' cy='26' r='18' stroke='%23FFD700' stroke-width='3' fill='none'/%3E%3Cline x1='39' y1='39' x2='56' y2='56' stroke='%23FFD700' stroke-width='4' stroke-linecap='round'/%3E%3Ctext x='26' y='31' text-anchor='middle' font-family='Outfit' font-weight='800' font-size='16' fill='%2300FF88'%3E%23%3C/text%3E%3C/svg%3E">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=10">
-  <!-- Chart.js CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="css/style.css?v=11">
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1375474490596764"
      crossorigin="anonymous"></script>
 </head>
@@ -63,6 +61,14 @@
         <div class="metric-val" id="m-total-won">$0</div>
         <div class="metric-lbl">Total Cash Won</div>
       </div>
+      <div class="metric-card">
+        <div class="metric-val" id="m-spent">$0</div>
+        <div class="metric-lbl">💵 Total Spent</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val" id="m-net">$0</div>
+        <div class="metric-lbl">📈 Net P/L</div>
+      </div>
     </div>
 
     <!-- Data Scope Toggle (for viewers/admins) -->
@@ -73,19 +79,19 @@
       </div>
     </div>
 
-    <!-- Game Selector — pick ONE lottery game; the pattern is per-game only -->
-    <div class="form-card game-select-card" id="game-select-card" style="margin-bottom:20px;">
-      <div class="form-title" style="display:flex;align-items:center;gap:8px;">🎟️ Select a Lottery Game</div>
-      <p style="color:var(--muted);font-size:0.82rem;margin:-4px 0 12px;">Everything below updates for the game you pick — patterns only hold within the same game.</p>
-      <div class="game-box-grid" id="anal-game-boxes"></div>
-    </div>
-
     <!-- Hot Numbers Section (selected game only) -->
     <div class="form-card hot-numbers-card" id="hot-numbers-card" style="margin-bottom: 20px;">
       <div class="form-title">🔥 Hot Numbers <span id="hot-game-label" style="color:var(--muted);font-weight:500;font-size:0.8rem;"></span></div>
       <div id="hot-numbers-section">
         <p style="color:var(--muted); font-size:0.85rem;">No ticket number data yet. Start logging ticket numbers to reveal patterns!</p>
       </div>
+    </div>
+
+    <!-- Game Selector — pick ONE lottery game; the pattern is per-game only -->
+    <div class="form-card game-select-card" id="game-select-card" style="margin-bottom:20px;">
+      <div class="form-title" style="display:flex;align-items:center;gap:8px;">🎟️ Select a Lottery Game</div>
+      <p style="color:var(--muted);font-size:0.82rem;margin:-4px 0 12px;">Everything updates for the game you pick — patterns only hold within the same game.</p>
+      <div class="game-box-grid" id="anal-game-boxes"></div>
     </div>
 
     <!-- Smart Recommendations Card -->
@@ -101,18 +107,12 @@
       <a href="index.html" class="add-btn" style="display:inline-block; max-width:200px; text-decoration:none; text-align:center; margin-top:16px;">Go to Tracker</a>
     </div>
 
-    <!-- Frequency Chart (selected game) -->
-    <div class="form-card" id="freq-chart-card" style="margin-bottom:20px;">
-      <div class="form-title" style="margin-bottom:12px;">📈 Ticket # Frequency <span id="chart-game-label" style="color:var(--muted);font-weight:500;font-size:0.8rem;"></span></div>
-      <div class="chart-container"><canvas id="analytics-chart"></canvas></div>
-    </div>
-
     <!-- Analytics Grid (Per-number Table + Wins Log) -->
     <div class="analytics-grid" id="analytics-grid">
       <!-- Left Column: Per-number breakdown -->
       <div class="chart-section form-card">
         <div class="chart-hdr">
-          <div class="form-title" style="margin-bottom: 0;">📊 Per-number breakdown</div>
+          <div class="form-title" style="margin-bottom: 0;">📊 Per-number breakdown <span id="chart-game-label" style="color:var(--muted);font-weight:500;font-size:0.8rem;"></span></div>
         </div>
         <div class="table-wrap freq-table-wrap">
           <table class="freq-table">
@@ -185,10 +185,10 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
   <!-- App Scripts -->
-  <script src="js/firebase-config.js?v=10"></script>
-  <script src="js/games.js?v=10"></script>
-  <script src="js/auth.js?v=10"></script>
-  <script src="js/tracker.js?v=10"></script>
-  <script src="js/prizes-page.js?v=10"></script>
+  <script src="js/firebase-config.js?v=11"></script>
+  <script src="js/games.js?v=11"></script>
+  <script src="js/auth.js?v=11"></script>
+  <script src="js/tracker.js?v=11"></script>
+  <script src="js/prizes-page.js?v=11"></script>
 </body>
 </html>

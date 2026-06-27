@@ -341,48 +341,6 @@
         </tr>`;
       }).join('');
     }
-
-    renderCommunityBar(list);
-  }
-
-  /* ── Community frequency bar chart (one bar per ticket number) ───── */
-  function renderCommunityBar(list) {
-    const ctx = document.getElementById('community-chart');
-    if (!ctx || typeof Chart === 'undefined') return;
-
-    const sorted = list.slice().sort((a, b) => {
-      const na = parseInt(a.num, 10), nb = parseInt(b.num, 10);
-      if (isNaN(na) || isNaN(nb)) return a.num.localeCompare(b.num);
-      return na - nb;
-    });
-    const labels = sorted.map(r => '#' + r.num);
-    const data = sorted.map(r => r.total);
-
-    if (_chartInstance) _chartInstance.destroy();
-    if (sorted.length === 0) return;
-
-    const maxV = Math.max(...data);
-    const colors = data.map(v => v === maxV ? '#FFD700' : 'rgba(255,215,0,0.4)');
-
-    _chartInstance = new Chart(ctx, {
-      type: 'bar',
-      data: { labels, datasets: [{ data, backgroundColor: colors, borderColor: '#FFD700', borderWidth: 1, borderRadius: 4, maxBarThickness: 46 }] },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: '#181818', titleColor: '#FFD700', bodyColor: '#F0F0F0',
-            displayColors: false,
-            callbacks: { label: c => `seen ${c.parsed.y}×` }
-          }
-        },
-        scales: {
-          x: { grid: { display: false }, ticks: { color: '#888', font: { size: 11 }, autoSkip: true, maxRotation: 0 } },
-          y: { grid: { color: '#222' }, ticks: { color: '#888', font: { size: 11 }, stepSize: 1, precision: 0 }, title: { display: true, text: 'times seen', color: '#888', font: { size: 11 } } }
-        }
-      }
-    });
   }
 
   /* ── Render Community Wins Table (selected game) ──────────── */

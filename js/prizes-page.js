@@ -78,7 +78,6 @@
     const noTicketsEl = document.getElementById('no-tickets-msg');
     const gridEl = document.getElementById('analytics-grid');
     const gameCardEl = document.getElementById('game-select-card');
-    const chartCardEl = document.getElementById('freq-chart-card');
     const hotCardEl = document.getElementById('hot-numbers-card');
 
     const show = numbered.length > 0;
@@ -92,7 +91,6 @@
     if (noTicketsEl) noTicketsEl.style.display = show ? 'none' : '';
     if (gridEl) gridEl.style.display = show ? '' : 'none';
     if (gameCardEl) gameCardEl.style.display = show ? '' : 'none';
-    if (chartCardEl) chartCardEl.style.display = show ? '' : 'none';
     if (hotCardEl) hotCardEl.style.display = show ? '' : 'none';
 
     buildGameBoxes();
@@ -146,11 +144,19 @@
           does NOT change when you switch the selected game). ── */
     const allWins = tickets.filter(t => t.outcome === 'win');
     const overallWon = allWins.reduce((sum, t) => sum + (t.winAmt || 0), 0);
+    const overallSpent = tickets.reduce((sum, t) => sum + (t.price || 0), 0);
     const overallMax = allWins.length ? Math.max(...allWins.map(t => parseFloat(t.winAmt) || 0)) : 0;
+    const net = overallWon - overallSpent;
     document.getElementById('m-wins').textContent = allWins.length;
     document.getElementById('m-lucky').textContent = tickets.length;   // total tickets logged
     document.getElementById('m-max').textContent = fmt(overallMax);
     document.getElementById('m-total-won').textContent = fmt(overallWon);
+    document.getElementById('m-spent').textContent = fmt(overallSpent);
+    const netEl = document.getElementById('m-net');
+    if (netEl) {
+      netEl.textContent = (net >= 0 ? '+' : '-') + fmt(Math.abs(net));
+      netEl.className = 'metric-val ' + (net >= 0 ? 'g' : 'r');
+    }
 
     /* ── Everything else is for the SELECTED game only. ── */
     const gameTickets = _gameFilter ? tickets.filter(t => t.gameNum === _gameFilter) : [];
@@ -165,7 +171,6 @@
 
     renderWinsTable(filteredWins);
     renderFreqTable(gameTickets);
-    renderChart(gameTickets);
     buildHotNumbers(gameTickets);
     updateRecommendations(filteredWins, _gameFilter);
   }
@@ -334,53 +339,6 @@
         </td>
       </tr>`;
     }).join('');
-  }
-
-  /* ── Render the frequency bar chart — one bar per ticket number ───── */
-  function renderChart(rows) {
-    const ctx = document.getElementById('analytics-chart');
-    if (!ctx || typeof Chart === 'undefined') return;
-
-    const counts = {};
-    for (const t of rows) {
-      const num = (t.ticketNumber || '').trim();
-      if (!num) continue;
-      counts[num] = (counts[num] || 0) + 1;
-    }
-
-    const keys = Object.keys(counts).sort((a, b) => {
-      const na = parseInt(a, 10), nb = parseInt(b, 10);
-      if (isNaN(na) || isNaN(nb)) return a.localeCompare(b);
-      return na - nb;
-    });
-    const labels = keys.map(k => '#' + k);
-    const data = keys.map(k => counts[k]);
-
-    if (_chartInstance) _chartInstance.destroy();
-    if (keys.length === 0) return;
-
-    const maxV = Math.max(...data);
-    const colors = data.map(v => v === maxV ? '#FFD700' : 'rgba(255,215,0,0.4)');
-
-    _chartInstance = new Chart(ctx, {
-      type: 'bar',
-      data: { labels, datasets: [{ data, backgroundColor: colors, borderColor: '#FFD700', borderWidth: 1, borderRadius: 4, maxBarThickness: 46 }] },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: '#181818', titleColor: '#FFD700', bodyColor: '#F0F0F0',
-            displayColors: false,
-            callbacks: { label: c => `seen ${c.parsed.y}×` }
-          }
-        },
-        scales: {
-          x: { grid: { display: false }, ticks: { color: '#888', font: { size: 11 }, autoSkip: true, maxRotation: 0 } },
-          y: { grid: { color: '#222' }, ticks: { color: '#888', font: { size: 11 }, stepSize: 1, precision: 0 }, title: { display: true, text: 'times seen', color: '#888', font: { size: 11 } } }
-        }
-      }
-    });
   }
 
   /* ── Hot Numbers ─────────────────────────────────────────── */
@@ -596,4 +554,4 @@
     setTimeout(() => t.className = 'toast', 2800);
   }
 
-})(); // The Pattern — per-game analytics
+})();
