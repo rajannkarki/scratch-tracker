@@ -1,20 +1,23 @@
 /* The Pattern — service worker (app-shell cache for offline use) */
-const CACHE = 'the-pattern-v12';
+const CACHE = 'the-pattern-v13';
 const ASSETS = [
   './',
   './index.html',
   './prizes.html',
   './admin.html',
-  './css/style.css?v=12',
-  './js/firebase-config.js?v=12',
-  './js/games.js?v=12',
-  './js/auth.js?v=12',
-  './js/tracker.js?v=12',
-  './js/ui.js?v=12',
-  './js/app.js?v=12',
-  './js/prizes-page.js?v=12',
-  './js/admin.js?v=12',
+  './css/style.css?v=13',
+  './js/firebase-config.js?v=13',
+  './js/games.js?v=13',
+  './js/auth.js?v=13',
+  './js/tracker.js?v=13',
+  './js/ui.js?v=13',
+  './js/app.js?v=13',
+  './js/prizes-page.js?v=13',
+  './js/admin.js?v=13',
   './icon.svg',
+  './icon-192.png',
+  './icon-512.png',
+  './icon-maskable-512.png',
   './manifest.json'
 ];
 

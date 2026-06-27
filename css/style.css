@@ -1054,3 +1054,95 @@ h1, .nav-title, .auth-title, .form-title, .prizes-title,
   cursor: zoom-out;
 }
 .photo-lightbox img { max-width: 95%; max-height: 95%; border-radius: 10px; }
+
+/* ============================================================
+   ✦ POLISH & RESPONSIVE LAYER ✦
+   ============================================================ */
+
+/* Gradient brand + page titles */
+.nav-title, .prizes-title, .auth-title {
+  background: linear-gradient(120deg, #FFD700 0%, #FFB300 45%, #FF8C00 100%);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Smoother, consistent card motion */
+.form-card, .metric-card, .stat, .game-box, .perf-tile, .catalog-card, .scope-toggle-card {
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease, background .18s ease;
+  will-change: transform;
+}
+.form-card:hover { box-shadow: 0 12px 34px rgba(0,0,0,0.38); }
+.metric-card:hover, .stat:hover {
+  transform: translateY(-3px);
+  border-color: rgba(255,215,0,0.35);
+  box-shadow: 0 10px 26px rgba(0,0,0,0.4);
+}
+
+/* Hairline gold accent that lights up on hover / featured cards */
+.metric-card, .stat { position: relative; }
+.metric-card::after, .stat::after {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255,215,0,0.7), transparent);
+  opacity: 0; transition: opacity .2s ease; pointer-events: none;
+}
+.metric-card:hover::after, .stat:hover::after, .metric-card.gold-border::after { opacity: 1; }
+
+/* Active nav link gets a soft underline glow */
+.nav-link.active { color: var(--gold); }
+.nav-link.active::after {
+  content: ''; display: block; height: 2px; margin-top: 4px; border-radius: 2px;
+  background: linear-gradient(90deg, var(--gold), var(--accent));
+  box-shadow: 0 0 8px var(--gold-glow);
+}
+
+/* Keyboard focus visibility (accessibility) */
+a:focus-visible, button:focus-visible, input:focus-visible,
+select:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 6px;
+}
+
+/* Never let anything force a horizontal scrollbar */
+img, canvas, table { max-width: 100%; }
+.table-wrap, .freq-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* ── Responsive: tablets ─────────────────────────────────────── */
+@media (max-width: 860px) {
+  .analytics-metrics { grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .nav-inner { padding: 12px 16px; }
+}
+
+/* ── Responsive: phones ──────────────────────────────────────── */
+@media (max-width: 600px) {
+  .main { padding: 16px 12px; gap: 16px; }
+  .main.max-width-large { padding: 16px 12px; }
+  .form-card { padding: 16px 14px; }
+
+  .nav-inner { flex-wrap: wrap; justify-content: center; gap: 8px 14px; }
+  .nav-brand { width: 100%; justify-content: center; }
+  .nav-links { gap: 4px; }
+  .nav-user { gap: 8px; }
+
+  .analytics-metrics { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .metric-card { padding: 14px 12px; }
+  .metric-val { font-size: 1.35rem; }
+  .metric-lbl { font-size: 0.6rem; }
+
+  .perf-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .game-box-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+
+  .prizes-title { font-size: 1.4rem; }
+
+  .freq-table th, .freq-table td,
+  .wins-table th, .wins-table td,
+  .user-tickets-table th, .user-tickets-table td { padding: 7px 8px; font-size: 0.78rem; }
+}
+
+/* ── Responsive: small phones ────────────────────────────────── */
+@media (max-width: 400px) {
+  .perf-grid { grid-template-columns: repeat(2, 1fr); }
+  .game-box { min-height: 56px; padding: 10px 12px; }
+  .game-box-name { font-size: 0.85rem; }
+  .metric-val { font-size: 1.2rem; }
+  .prizes-title { font-size: 1.25rem; }
+  .form-title { font-size: 0.85rem; }
+}
